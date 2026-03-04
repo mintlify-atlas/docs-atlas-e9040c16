@@ -436,7 +436,7 @@ import (
     "context"
     "log"
     
-    "github.com/henryweng03/linkvite-go"
+    "github.com/linkvite/go"
 )
 
 func main() {
@@ -463,7 +463,7 @@ import (
     "context"
     "log"
     
-    "github.com/henryweng03/linkvite-go"
+    "github.com/linkvite/go"
 )
 
 func main() {
@@ -496,7 +496,7 @@ import (
     "context"
     "log"
     
-    "github.com/henryweng03/linkvite-go"
+    "github.com/linkvite/go"
 )
 
 func main() {
@@ -547,7 +547,7 @@ import (
     "net/http"
     "time"
     
-    "github.com/henryweng03/linkvite-go"
+    "github.com/linkvite/go"
 )
 
 func main() {
@@ -574,4 +574,46 @@ func main() {
     
     log.Printf("Connected as: %s", user.Email)
 }
+```
+
+## Helper Functions
+
+### Ptr
+
+Creates a pointer to a value. This is useful for setting optional fields in input structs.
+
+```go
+func Ptr[T any](v T) *T
+```
+
+<ParamField path="v" type="T" required>
+  The value to convert to a pointer.
+</ParamField>
+
+<ResponseField name="pointer" type="*T">
+  A pointer to the provided value.
+</ResponseField>
+
+**Example:**
+
+```go
+// Setting optional fields in edit operations
+bookmark, err := client.Bookmarks.Edit(ctx, "bookmark-123", &linkvite.EditBookmarkInput{
+    Description: linkvite.Ptr("Updated description"),
+    Starred:     linkvite.Ptr(true),
+})
+
+// Setting optional booleans in collection operations
+collection, err := client.Collections.Create(ctx, &linkvite.CreateCollectionInput{
+    Name:      "My Collection",
+    IsPrivate: linkvite.Ptr(false),
+})
+
+// Setting optional integers
+highlight, err := client.Highlights.Create(ctx, &linkvite.CreateHighlightInput{
+    BookmarkID: "bookmark-123",
+    Start:      linkvite.Ptr(0),
+    End:        linkvite.Ptr(50),
+    Exact:      "highlighted text",
+})
 ```
