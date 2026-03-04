@@ -1,80 +1,283 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get up and running with the Linkvite Go SDK in under 5 minutes
 ---
 
-## Get started in three steps
+This guide will walk you through creating your first Linkvite application. You'll learn how to install the SDK, authenticate, and create your first bookmark.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before you begin, make sure you have:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+- Go 1.24.5 or later installed
+- A Linkvite account (sign up at [linkvite.io](https://linkvite.io))
+- An API key from your Linkvite dashboard
+
+<Note>
+  New to Linkvite? [Create a free account](https://linkvite.io) to get started.
+</Note>
+
+## Step 1: Install the SDK
+
+<Steps>
+  <Step title="Install the package">
+    Use `go get` to install the Linkvite Go SDK:
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    ```bash
+    go get github.com/linkvite/go
+    ```
+  </Step>
+  
+  <Step title="Initialize your project">
+    Create a new Go module if you haven't already:
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```bash
+    mkdir my-linkvite-app
+    cd my-linkvite-app
+    go mod init my-linkvite-app
+    go get github.com/linkvite/go
+    ```
+  </Step>
+</Steps>
 
-### Step 2: Deploy your changes
+## Step 2: Get your API key
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+<Steps>
+  <Step title="Log in to Linkvite">
+    Visit [linkvite.io](https://linkvite.io) and log in to your account.
+  </Step>
+  
+  <Step title="Navigate to settings">
+    Go to your account settings and find the API Keys section.
+  </Step>
+  
+  <Step title="Create an API key">
+    Click "Create API Key" and give it a name (e.g., "My Go App").
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    <Warning>
+      Copy your API key immediately - you won't be able to see it again! API keys start with `link_`.
+    </Warning>
+  </Step>
+  
+  <Step title="Store securely">
+    Save your API key in an environment variable:
+    
+    ```bash
+    export LINKVITE_API_KEY="link_your-api-key-here"
+    ```
+  </Step>
+</Steps>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+## Step 3: Create your first application
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+Create a file called `main.go` with the following code:
 
-### Step 3: Go live
+```go main.go
+package main
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+import (
+    "context"
+    "fmt"
+    "log"
+    "os"
+
+    linkvite "github.com/linkvite/go"
+)
+
+func main() {
+    // Get API key from environment
+    apiKey := os.Getenv("LINKVITE_API_KEY")
+    if apiKey == "" {
+        log.Fatal("LINKVITE_API_KEY environment variable not set")
+    }
+
+    // Create a new client
+    client, err := linkvite.NewClient(apiKey)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    ctx := context.Background()
+
+    // Get current user to verify authentication
+    user, err := client.User.Get(ctx)
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("Hello, %s!\n", user.Name)
+
+    // Create your first bookmark
+    bookmark, err := client.Bookmarks.Create(ctx, &linkvite.CreateBookmarkInput{
+        URL:         "https://go.dev",
+        Title:       "Go Programming Language",
+        Description: "Official Go website",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("Created bookmark: %s\n", bookmark.Title)
+    fmt.Printf("Bookmark ID: %s\n", bookmark.ID)
+    fmt.Printf("URL: %s\n", bookmark.URL)
+}
+```
+
+## Step 4: Run your application
+
+Run your application:
+
+```bash
+go run main.go
+```
+
+You should see output like:
+
+```
+Hello, John Doe!
+Created bookmark: Go Programming Language
+Bookmark ID: bmk_abc123
+URL: https://go.dev
+```
+
+<Check>
+  Congratulations! You've successfully created your first Linkvite application.
+</Check>
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
+Now that you have a working application, explore more features:
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Authentication" icon="key" href="/authentication/overview">
+    Learn about different authentication methods
+  </Card>
+  
+  <Card title="Bookmarks Guide" icon="bookmark" href="/guides/bookmarks">
+    Explore advanced bookmark management features
+  </Card>
+  
+  <Card title="Collections" icon="folder" href="/guides/collections">
+    Organize bookmarks into collections
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api/client">
+    Browse the complete API reference
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Common operations
+
+Here are some common operations you might want to try next:
+
+### List your bookmarks
+
+```go
+// List bookmarks with pagination
+result, err := client.Bookmarks.List(ctx, &linkvite.ListOptions{
+    Page:  1,
+    Limit: 20,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Found %d bookmarks\n", result.Pagination.Total)
+for _, bookmark := range result.Bookmarks {
+    fmt.Printf("- %s: %s\n", bookmark.Title, bookmark.URL)
+}
+```
+
+### Create a collection
+
+```go
+collection, err := client.Collections.Create(ctx, &linkvite.CreateCollectionInput{
+    Name:        "Go Resources",
+    Description: "Useful Go programming resources",
+    IsPrivate:   linkvite.Ptr(false),
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Created collection: %s (ID: %s)\n", collection.Name, collection.ID)
+```
+
+### Add a bookmark to a collection
+
+```go
+bookmark, err := client.Bookmarks.Create(ctx, &linkvite.CreateBookmarkInput{
+    URL:        "https://go.dev/doc/",
+    Title:      "Go Documentation",
+    Collection: collection.ID,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Added bookmark to collection: %s\n", bookmark.Title)
+```
+
+### Search bookmarks
+
+```go
+results, err := client.Search.Search(ctx, &linkvite.SearchInput{
+    Query: "golang",
+    Type:  "bookmarks",
+    Page:  1,
+    Limit: 10,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Found %d results for 'golang'\n", results.Pagination.Total)
+```
+
+## Error handling
+
+Always check for errors and handle them appropriately:
+
+```go
+bookmark, err := client.Bookmarks.Get(ctx, "bmk_invalid")
+if err != nil {
+    if apiErr, ok := err.(*linkvite.Error); ok {
+        if apiErr.IsNotFound() {
+            fmt.Println("Bookmark not found")
+        } else if apiErr.IsUnauthorized() {
+            fmt.Println("Invalid API key")
+        } else {
+            fmt.Printf("API error: %s\n", apiErr.Message)
+        }
+    } else {
+        fmt.Printf("Error: %v\n", err)
+    }
+}
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Authentication failed">
+    Make sure your API key is correct and starts with `link_`. Check that you've set the `LINKVITE_API_KEY` environment variable.
+  </Accordion>
+  
+  <Accordion title="Package not found">
+    Run `go mod tidy` to ensure all dependencies are downloaded. Make sure you're using Go 1.24.5 or later.
+  </Accordion>
+  
+  <Accordion title="Connection timeout">
+    If you're behind a proxy or firewall, you may need to configure your HTTP client. See the [Client configuration guide](/concepts/client) for details.
+  </Accordion>
+</AccordionGroup>
+
+## Need help?
+
+<CardGroup cols={2}>
+  <Card title="Join our community" icon="discord" href="https://discord.gg/linkvite">
+    Get help from other developers
+  </Card>
+  
+  <Card title="Report an issue" icon="github" href="https://github.com/linkvite/go/issues">
+    Found a bug? Let us know
+  </Card>
+</CardGroup>

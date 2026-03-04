@@ -1,0 +1,743 @@
+---
+title: 'Bookmarks Service'
+description: 'Complete API reference for bookmark operations'
+---
+
+The `BookmarksService` handles all bookmark-related operations including creating, retrieving, updating, and deleting bookmarks.
+
+## Accessing the Service
+
+```go
+client := linkvite.NewClient("your-api-key")
+bookmarks := client.Bookmarks
+```
+
+## List Operations
+
+### List
+
+Retrieves bookmarks for the current user with pagination.
+
+```go
+func (s *BookmarksService) List(ctx context.Context, opts *ListOptions) (*ListBookmarksResult, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="opts" type="*ListOptions">
+  Pagination and filtering options
+  
+  <Expandable title="ListOptions fields">
+    <ParamField path="Page" type="int64">
+      Page number (starting from 1)
+    </ParamField>
+    <ParamField path="Limit" type="int64">
+      Number of items per page
+    </ParamField>
+    <ParamField path="Query" type="string">
+      Search query
+    </ParamField>
+    <ParamField path="Status" type="string">
+      Filter by status: "active" or "trashed"
+    </ParamField>
+    <ParamField path="Sort" type="string">
+      Sort order
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="ListBookmarksResult" type="*ListBookmarksResult">
+  <Expandable title="fields">
+    <ResponseField name="Bookmarks" type="[]*BookmarkWithMeta">
+      List of bookmarks with metadata
+    </ResponseField>
+    <ResponseField name="Pagination" type="*Pagination">
+      Pagination information
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example**
+
+```go
+opts := &linkvite.ListOptions{
+    Page:  1,
+    Limit: 20,
+    Query: "golang",
+    Status: "active",
+}
+
+result, err := client.Bookmarks.List(context.Background(), opts)
+if err != nil {
+    log.Fatal(err)
+}
+
+for _, bookmark := range result.Bookmarks {
+    fmt.Printf("%s: %s\n", bookmark.Title, bookmark.URL)
+}
+```
+
+### ListAll
+
+Retrieves all bookmarks without pagination.
+
+```go
+func (s *BookmarksService) ListAll(ctx context.Context) (*ListBookmarksResult, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ResponseField name="ListBookmarksResult" type="*ListBookmarksResult">
+  All bookmarks for the user
+</ResponseField>
+
+**Example**
+
+```go
+result, err := client.Bookmarks.ListAll(context.Background())
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Total bookmarks: %d\n", len(result.Bookmarks))
+```
+
+### ListByTag
+
+Retrieves bookmarks filtered by a specific tag.
+
+```go
+func (s *BookmarksService) ListByTag(ctx context.Context, tag string, opts *ListOptions) (*ListBookmarksResult, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="tag" type="string" required>
+  Tag to filter by
+</ParamField>
+
+<ParamField path="opts" type="*ListOptions">
+  Pagination options
+</ParamField>
+
+**Example**
+
+```go
+result, err := client.Bookmarks.ListByTag(context.Background(), "golang", nil)
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+### ListByCollection
+
+Retrieves bookmarks from a specific collection.
+
+```go
+func (s *BookmarksService) ListByCollection(ctx context.Context, collectionID string, opts *ListOptions) (*ListBookmarksResult, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="collectionID" type="string" required>
+  ID of the collection
+</ParamField>
+
+<ParamField path="opts" type="*ListOptions">
+  Pagination options
+</ParamField>
+
+**Example**
+
+```go
+result, err := client.Bookmarks.ListByCollection(
+    context.Background(),
+    "collection-123",
+    &linkvite.ListOptions{Limit: 50},
+)
+```
+
+## Retrieve Operations
+
+### Get
+
+Retrieves a single bookmark by ID.
+
+```go
+func (s *BookmarksService) Get(ctx context.Context, id string) (*BookmarkWithMeta, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Bookmark ID
+</ParamField>
+
+<ResponseField name="BookmarkWithMeta" type="*BookmarkWithMeta">
+  The bookmark with metadata including owner and collection information
+</ResponseField>
+
+**Example**
+
+```go
+bookmark, err := client.Bookmarks.Get(context.Background(), "bookmark-123")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Title: %s\nURL: %s\nOwner: %s\n", 
+    bookmark.Title, 
+    bookmark.URL, 
+    bookmark.OwnerName,
+)
+```
+
+### GetReader
+
+Retrieves the readable content of a bookmark.
+
+```go
+func (s *BookmarksService) GetReader(ctx context.Context, id string) (*BookmarkReader, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Bookmark ID
+</ParamField>
+
+<ResponseField name="BookmarkReader" type="*BookmarkReader">
+  <Expandable title="fields">
+    <ResponseField name="URL" type="string">
+      The URL of the bookmark
+    </ResponseField>
+    <ResponseField name="Title" type="string">
+      The page title
+    </ResponseField>
+    <ResponseField name="ByLine" type="string">
+      Author information
+    </ResponseField>
+    <ResponseField name="Content" type="string">
+      HTML content
+    </ResponseField>
+    <ResponseField name="TextContent" type="string">
+      Plain text content
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example**
+
+```go
+reader, err := client.Bookmarks.GetReader(context.Background(), "bookmark-123")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Title: %s\nBy: %s\n\n%s\n",
+    reader.Title,
+    reader.ByLine,
+    reader.TextContent,
+)
+```
+
+## Create Operations
+
+### Create
+
+Creates a new bookmark.
+
+```go
+func (s *BookmarksService) Create(ctx context.Context, input *CreateBookmarkInput) (*Bookmark, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="*CreateBookmarkInput" required>
+  <Expandable title="CreateBookmarkInput fields">
+    <ParamField path="URL" type="string" required>
+      The URL to bookmark
+    </ParamField>
+    <ParamField path="Collection" type="string">
+      Collection ID to add the bookmark to
+    </ParamField>
+    <ParamField path="Title" type="string">
+      Custom title (auto-detected if not provided)
+    </ParamField>
+    <ParamField path="Description" type="string">
+      Custom description
+    </ParamField>
+    <ParamField path="Starred" type="*bool">
+      Whether to star the bookmark
+    </ParamField>
+    <ParamField path="Tags" type="string">
+      Comma-separated tags
+    </ParamField>
+    <ParamField path="Cover" type="string">
+      Custom cover image URL
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="Bookmark" type="*Bookmark">
+  The created bookmark
+</ResponseField>
+
+**Example**
+
+```go
+starred := true
+bookmark, err := client.Bookmarks.Create(context.Background(), &linkvite.CreateBookmarkInput{
+    URL:         "https://golang.org/doc/",
+    Title:       "Go Documentation",
+    Description: "Official Go programming language documentation",
+    Tags:        "golang,programming,documentation",
+    Starred:     &starred,
+    Collection:  "my-collection-id",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Created bookmark: %s\n", bookmark.ID)
+```
+
+### CreateManual
+
+Creates bookmarks with manual metadata (batch operation).
+
+```go
+func (s *BookmarksService) CreateManual(ctx context.Context, input []*CreateManualBookmarkInput) ([]*Bookmark, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="[]*CreateManualBookmarkInput" required>
+  Array of bookmarks to create
+  
+  <Expandable title="CreateManualBookmarkInput fields">
+    <ParamField path="Title" type="string" required>
+      The title
+    </ParamField>
+    <ParamField path="URL" type="string" required>
+      The URL
+    </ParamField>
+    <ParamField path="Description" type="string">
+      Description
+    </ParamField>
+    <ParamField path="Collection" type="string">
+      Collection ID
+    </ParamField>
+    <ParamField path="Cover" type="string">
+      Cover image URL
+    </ParamField>
+    <ParamField path="Tags" type="string">
+      Comma-separated tags
+    </ParamField>
+    <ParamField path="Starred" type="*bool">
+      Star status
+    </ParamField>
+    <ParamField path="Favicon" type="string">
+      Favicon URL
+    </ParamField>
+    <ParamField path="AllowComments" type="*bool">
+      Whether to allow comments
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Example**
+
+```go
+allowComments := true
+bookmarks, err := client.Bookmarks.CreateManual(context.Background(), []*linkvite.CreateManualBookmarkInput{
+    {
+        Title:         "Example 1",
+        URL:           "https://example.com/1",
+        Description:   "First example",
+        AllowComments: &allowComments,
+    },
+    {
+        Title:       "Example 2",
+        URL:         "https://example.com/2",
+        Description: "Second example",
+    },
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Created %d bookmarks\n", len(bookmarks))
+```
+
+### CreateFromTabs
+
+Creates bookmarks from browser tabs.
+
+```go
+func (s *BookmarksService) CreateFromTabs(ctx context.Context, input *CreateTabsBookmarksInput) ([]*Bookmark, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="*CreateTabsBookmarksInput" required>
+  <Expandable title="CreateTabsBookmarksInput fields">
+    <ParamField path="Collection" type="string">
+      Collection ID to add bookmarks to
+    </ParamField>
+    <ParamField path="Tabs" type="[]TabBookmark" required>
+      Array of tabs
+      
+      <Expandable title="TabBookmark fields">
+        <ParamField path="URL" type="string" required>
+          Tab URL
+        </ParamField>
+        <ParamField path="Title" type="string">
+          Tab title
+        </ParamField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Example**
+
+```go
+bookmarks, err := client.Bookmarks.CreateFromTabs(context.Background(), &linkvite.CreateTabsBookmarksInput{
+    Collection: "my-collection",
+    Tabs: []linkvite.TabBookmark{
+        {URL: "https://golang.org", Title: "Go"},
+        {URL: "https://github.com", Title: "GitHub"},
+    },
+})
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+## Update Operations
+
+### Edit
+
+Updates a bookmark.
+
+```go
+func (s *BookmarksService) Edit(ctx context.Context, id string, input *EditBookmarkInput) (*Bookmark, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Bookmark ID
+</ParamField>
+
+<ParamField path="input" type="*EditBookmarkInput" required>
+  <Expandable title="EditBookmarkInput fields">
+    <ParamField path="Name" type="string">
+      New title
+    </ParamField>
+    <ParamField path="URL" type="string">
+      New URL
+    </ParamField>
+    <ParamField path="Tags" type="string">
+      Comma-separated tags
+    </ParamField>
+    <ParamField path="Status" type="BookmarkStatus">
+      "active" or "trashed"
+    </ParamField>
+    <ParamField path="Description" type="*string">
+      New description
+    </ParamField>
+    <ParamField path="Collection" type="*string">
+      New collection ID
+    </ParamField>
+    <ParamField path="AllowComments" type="*bool">
+      Whether to allow comments
+    </ParamField>
+    <ParamField path="Favicon" type="string">
+      Favicon URL
+    </ParamField>
+    <ParamField path="Type" type="string">
+      Bookmark type
+    </ParamField>
+    <ParamField path="Starred" type="*bool">
+      Star status
+    </ParamField>
+    <ParamField path="Cover" type="string">
+      Cover image URL
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Example**
+
+```go
+trashed := linkvite.BookmarkStatusTrashed
+desc := "Updated description"
+
+bookmark, err := client.Bookmarks.Edit(context.Background(), "bookmark-123", &linkvite.EditBookmarkInput{
+    Name:        "New Title",
+    Description: &desc,
+    Tags:        "golang,updated",
+    Status:      trashed,
+})
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+### BatchEdit
+
+Updates multiple bookmarks at once.
+
+```go
+func (s *BookmarksService) BatchEdit(ctx context.Context, input *BatchEditBookmarkInput) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="*BatchEditBookmarkInput" required>
+  <Expandable title="BatchEditBookmarkInput fields">
+    <ParamField path="Bookmarks" type="[]string" required>
+      Array of bookmark IDs to update
+    </ParamField>
+    <ParamField path="Tags" type="*string">
+      New tags for all bookmarks
+    </ParamField>
+    <ParamField path="Status" type="BookmarkStatus">
+      New status for all bookmarks
+    </ParamField>
+    <ParamField path="Collection" type="string">
+      Move all bookmarks to this collection
+    </ParamField>
+    <ParamField path="Type" type="string">
+      New type for all bookmarks
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Example**
+
+```go
+tags := "archived,2024"
+err := client.Bookmarks.BatchEdit(context.Background(), &linkvite.BatchEditBookmarkInput{
+    Bookmarks:  []string{"id1", "id2", "id3"},
+    Tags:       &tags,
+    Status:     linkvite.BookmarkStatusTrashed,
+    Collection: "archive-collection",
+})
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+## Star Operations
+
+### ToggleStar
+
+Toggles the starred status of a bookmark.
+
+```go
+func (s *BookmarksService) ToggleStar(ctx context.Context, id string) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Bookmark ID
+</ParamField>
+
+**Example**
+
+```go
+err := client.Bookmarks.ToggleStar(context.Background(), "bookmark-123")
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+### BatchToggleStar
+
+Toggles the starred status of multiple bookmarks.
+
+```go
+func (s *BookmarksService) BatchToggleStar(ctx context.Context, input *BatchToggleStarInput) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="*BatchToggleStarInput" required>
+  <Expandable title="BatchToggleStarInput fields">
+    <ParamField path="Bookmarks" type="[]string" required>
+      Array of bookmark IDs
+    </ParamField>
+    <ParamField path="Value" type="*bool" required>
+      true to star, false to unstar
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Example**
+
+```go
+starred := true
+err := client.Bookmarks.BatchToggleStar(context.Background(), &linkvite.BatchToggleStarInput{
+    Bookmarks: []string{"id1", "id2", "id3"},
+    Value:     &starred,
+})
+```
+
+## Other Operations
+
+### Exists
+
+Checks if a bookmark with the given URL exists.
+
+```go
+func (s *BookmarksService) Exists(ctx context.Context, input *BookmarkExistsInput) (*BookmarkExistsResult, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="*BookmarkExistsInput" required>
+  <Expandable title="BookmarkExistsInput fields">
+    <ParamField path="URL" type="string" required>
+      URL to check
+    </ParamField>
+    <ParamField path="Collection" type="string">
+      Optional collection ID to scope the check
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="BookmarkExistsResult" type="*BookmarkExistsResult">
+  <Expandable title="fields">
+    <ResponseField name="Exists" type="bool">
+      Whether the bookmark exists
+    </ResponseField>
+    <ResponseField name="Bookmark" type="*Bookmark">
+      The existing bookmark (if found)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example**
+
+```go
+result, err := client.Bookmarks.Exists(context.Background(), &linkvite.BookmarkExistsInput{
+    URL:        "https://example.com",
+    Collection: "my-collection",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+if result.Exists {
+    fmt.Printf("Bookmark exists: %s\n", result.Bookmark.Title)
+} else {
+    fmt.Println("Bookmark does not exist")
+}
+```
+
+### RequestArchive
+
+Requests an archive for a bookmark.
+
+```go
+func (s *BookmarksService) RequestArchive(ctx context.Context, id string) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Bookmark ID
+</ParamField>
+
+**Example**
+
+```go
+err := client.Bookmarks.RequestArchive(context.Background(), "bookmark-123")
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+### Delete
+
+Deletes a bookmark.
+
+```go
+func (s *BookmarksService) Delete(ctx context.Context, id string) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Bookmark ID
+</ParamField>
+
+**Example**
+
+```go
+err := client.Bookmarks.Delete(context.Background(), "bookmark-123")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Bookmark deleted")
+```
+
+## Error Handling
+
+All methods return an error as the last return value. Always check for errors:
+
+```go
+bookmark, err := client.Bookmarks.Get(context.Background(), "bookmark-123")
+if err != nil {
+    // Handle error
+    log.Printf("Failed to get bookmark: %v", err)
+    return
+}
+
+// Use bookmark
+fmt.Println(bookmark.Title)
+```
+
+## Type Reference
+
+For detailed information about types used in this service, see:
+
+- [Bookmark Types](/api/types#bookmark)
+- [List Options](/api/types#list-options)
+- [Pagination](/api/types#pagination)

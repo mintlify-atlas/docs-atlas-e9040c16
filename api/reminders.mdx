@@ -1,0 +1,467 @@
+---
+title: 'Reminders Service'
+description: 'Complete API reference for bookmark reminder operations'
+---
+
+The `RemindersService` handles operations for creating and managing reminders for bookmarks.
+
+## Accessing the Service
+
+```go
+client := linkvite.NewClient("your-api-key")
+reminders := client.Reminders
+```
+
+## List and Retrieve Operations
+
+### List
+
+Retrieves all reminders for the current user with pagination.
+
+```go
+func (s *RemindersService) List(ctx context.Context, opts *ListOptions) (*ListRemindersResult, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="opts" type="*ListOptions">
+  Pagination and filtering options
+</ParamField>
+
+<ResponseField name="result" type="*ListRemindersResult">
+  <Expandable title="fields">
+    <ResponseField name="Reminders" type="[]*ReminderWithMeta">
+      Array of reminders with bookmark metadata
+    </ResponseField>
+    <ResponseField name="Pagination" type="*Pagination">
+      Pagination information
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example**
+
+```go
+result, err := client.Reminders.List(context.Background(), &linkvite.ListOptions{
+    Page:  1,
+    Limit: 20,
+    Sort:  "remind_at",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Total reminders: %d\n", len(result.Reminders))
+for _, reminder := range result.Reminders {
+    status := "Pending"
+    if reminder.Completed {
+        status = "Completed"
+    }
+    fmt.Printf("[%s] %s - %s\n", 
+        status,
+        reminder.BookmarkTitle, 
+        reminder.RemindAt.Format("Jan 2, 2006 15:04"),
+    )
+}
+```
+
+### Get
+
+Retrieves a single reminder by ID.
+
+```go
+func (s *RemindersService) Get(ctx context.Context, id string) (*ReminderWithMeta, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Reminder ID
+</ParamField>
+
+<ResponseField name="reminder" type="*ReminderWithMeta">
+  The reminder with bookmark information
+</ResponseField>
+
+**Example**
+
+```go
+reminder, err := client.Reminders.Get(context.Background(), "reminder-123")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Reminder for: %s\n", reminder.BookmarkTitle)
+fmt.Printf("URL: %s\n", reminder.BookmarkURL)
+fmt.Printf("Remind at: %s\n", reminder.RemindAt)
+if reminder.Note != "" {
+    fmt.Printf("Note: %s\n", reminder.Note)
+}
+```
+
+## Create Operations
+
+### Create
+
+Creates a new reminder for a bookmark.
+
+```go
+func (s *RemindersService) Create(ctx context.Context, input *CreateReminderInput) (*Reminder, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="*CreateReminderInput" required>
+  <Expandable title="CreateReminderInput fields">
+    <ParamField path="BookmarkID" type="string" required>
+      ID of the bookmark to set a reminder for
+    </ParamField>
+    <ParamField path="RemindAt" type="time.Time" required>
+      Date and time when the reminder should trigger
+    </ParamField>
+    <ParamField path="Note" type="string">
+      Optional note for the reminder
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="reminder" type="*Reminder">
+  The created reminder
+</ResponseField>
+
+**Example**
+
+```go
+import "time"
+
+// Set reminder for tomorrow at 9 AM
+remindTime := time.Now().AddDate(0, 0, 1)
+remindTime = time.Date(
+    remindTime.Year(), 
+    remindTime.Month(), 
+    remindTime.Day(), 
+    9, 0, 0, 0, 
+    remindTime.Location(),
+)
+
+reminder, err := client.Reminders.Create(context.Background(), &linkvite.CreateReminderInput{
+    BookmarkID: "bookmark-123",
+    RemindAt:   remindTime,
+    Note:       "Review this article",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Reminder created: %s\n", reminder.ID)
+```
+
+## Update Operations
+
+### Edit
+
+Updates a reminder.
+
+```go
+func (s *RemindersService) Edit(ctx context.Context, id string, input *EditReminderInput) (*Reminder, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Reminder ID
+</ParamField>
+
+<ParamField path="input" type="*EditReminderInput" required>
+  <Expandable title="EditReminderInput fields">
+    <ParamField path="RemindAt" type="*time.Time">
+      New reminder date/time
+    </ParamField>
+    <ParamField path="Note" type="*string">
+      Updated note
+    </ParamField>
+    <ParamField path="Completed" type="*bool">
+      Mark as completed/incomplete
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="reminder" type="*Reminder">
+  The updated reminder
+</ResponseField>
+
+**Example**
+
+```go
+import "time"
+
+// Postpone reminder by 1 week
+newTime := time.Now().AddDate(0, 0, 7)
+completed := false
+note := "Postponed for next week"
+
+reminder, err := client.Reminders.Edit(context.Background(), "reminder-123", &linkvite.EditReminderInput{
+    RemindAt:  &newTime,
+    Note:      &note,
+    Completed: &completed,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Reminder updated. New time: %s\n", reminder.RemindAt)
+```
+
+### BatchEdit
+
+Updates multiple reminders at once.
+
+```go
+func (s *RemindersService) BatchEdit(ctx context.Context, input *BatchEditRemindersInput) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="*BatchEditRemindersInput" required>
+  <Expandable title="BatchEditRemindersInput fields">
+    <ParamField path="Reminders" type="[]string" required>
+      Array of reminder IDs to update
+    </ParamField>
+    <ParamField path="Completed" type="*bool">
+      Mark all as completed/incomplete
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Example**
+
+```go
+// Mark multiple reminders as completed
+completed := true
+err := client.Reminders.BatchEdit(context.Background(), &linkvite.BatchEditRemindersInput{
+    Reminders: []string{"reminder-1", "reminder-2", "reminder-3"},
+    Completed: &completed,
+})
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Reminders marked as completed")
+```
+
+## Delete Operations
+
+### Delete
+
+Deletes a single reminder.
+
+```go
+func (s *RemindersService) Delete(ctx context.Context, id string) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Reminder ID to delete
+</ParamField>
+
+**Example**
+
+```go
+err := client.Reminders.Delete(context.Background(), "reminder-123")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Reminder deleted")
+```
+
+### BatchDelete
+
+Deletes multiple reminders at once.
+
+```go
+func (s *RemindersService) BatchDelete(ctx context.Context, input *BatchDeleteRemindersInput) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="*BatchDeleteRemindersInput" required>
+  <Expandable title="BatchDeleteRemindersInput fields">
+    <ParamField path="Reminders" type="[]string" required>
+      Array of reminder IDs to delete
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Example**
+
+```go
+err := client.Reminders.BatchDelete(context.Background(), &linkvite.BatchDeleteRemindersInput{
+    Reminders: []string{"reminder-1", "reminder-2", "reminder-3"},
+})
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Multiple reminders deleted")
+```
+
+### Clear
+
+Deletes all reminders for the current user.
+
+```go
+func (s *RemindersService) Clear(ctx context.Context) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+**Example**
+
+```go
+err := client.Reminders.Clear(context.Background())
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("All reminders cleared")
+```
+
+<Warning>
+  This operation is permanent and cannot be undone. All reminders will be deleted.
+</Warning>
+
+## Complete Reminders Example
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "time"
+    "github.com/yourusername/linkvite-go"
+)
+
+func main() {
+    client := linkvite.NewClient("your-api-key")
+    ctx := context.Background()
+
+    // Create a reminder for tomorrow
+    tomorrow := time.Now().AddDate(0, 0, 1)
+    tomorrow = time.Date(
+        tomorrow.Year(),
+        tomorrow.Month(),
+        tomorrow.Day(),
+        9, 0, 0, 0,
+        tomorrow.Location(),
+    )
+
+    reminder, err := client.Reminders.Create(ctx, &linkvite.CreateReminderInput{
+        BookmarkID: "bookmark-123",
+        RemindAt:   tomorrow,
+        Note:       "Read this article",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("Created reminder: %s\n", reminder.ID)
+
+    // List all reminders
+    result, err := client.Reminders.List(ctx, &linkvite.ListOptions{
+        Sort: "remind_at",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("\nUpcoming reminders (%d):\n", len(result.Reminders))
+    for _, r := range result.Reminders {
+        if !r.Completed {
+            fmt.Printf("- %s\n", r.BookmarkTitle)
+            fmt.Printf("  Remind at: %s\n", r.RemindAt.Format("Jan 2, 2006 15:04"))
+            if r.Note != "" {
+                fmt.Printf("  Note: %s\n", r.Note)
+            }
+        }
+    }
+
+    // Mark a reminder as completed
+    completed := true
+    _, err = client.Reminders.Edit(ctx, reminder.ID, &linkvite.EditReminderInput{
+        Completed: &completed,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Println("\nMarked reminder as completed")
+}
+```
+
+## Working with Time Zones
+
+When creating reminders, be aware of time zones:
+
+```go
+import "time"
+
+// Use local time zone
+localTime := time.Now().AddDate(0, 0, 7)
+reminder, err := client.Reminders.Create(ctx, &linkvite.CreateReminderInput{
+    BookmarkID: "bookmark-123",
+    RemindAt:   localTime,
+})
+
+// Use specific time zone
+loc, _ := time.LoadLocation("America/New_York")
+nyTime := time.Date(2024, 12, 25, 9, 0, 0, 0, loc)
+reminder, err = client.Reminders.Create(ctx, &linkvite.CreateReminderInput{
+    BookmarkID: "bookmark-123",
+    RemindAt:   nyTime,
+})
+
+// Use UTC
+utcTime := time.Now().UTC().AddDate(0, 0, 1)
+reminder, err = client.Reminders.Create(ctx, &linkvite.CreateReminderInput{
+    BookmarkID: "bookmark-123",
+    RemindAt:   utcTime,
+})
+```
+
+## Error Handling
+
+All methods return an error. Always check for errors:
+
+```go
+result, err := client.Reminders.List(context.Background(), nil)
+if err != nil {
+    log.Printf("Failed to get reminders: %v", err)
+    return
+}
+
+for _, reminder := range result.Reminders {
+    fmt.Println(reminder.BookmarkTitle)
+}
+```
+
+## Type Reference
+
+For detailed information about types used in this service, see:
+
+- [Reminder Types](/api/types#reminder)
+- [List Options](/api/types#list-options)
+- [Pagination](/api/types#pagination)

@@ -1,0 +1,1563 @@
+---
+title: 'Types'
+description: 'Complete reference for all types in the Linkvite Go SDK'
+---
+
+## User Types
+
+### User
+
+Represents a Linkvite user account with full details including settings and preferences.
+
+```go
+type User struct {
+    ID             string
+    Name           string
+    Email          string
+    Username       string
+    Avatar         string
+    EmailVerified  bool
+    AccountType    AccountType
+    Status         UserStatus
+    Verified       bool
+    FolderName     string
+    PrivateAccount bool
+    LastLoginAt    *time.Time
+    CreatedAt      time.Time
+    UpdatedAt      time.Time
+    PushEnabled    bool
+    EmailEnabled   bool
+    InAppEnabled   bool
+}
+```
+
+<ResponseField name="ID" type="string">
+  Unique identifier for the user
+</ResponseField>
+
+<ResponseField name="Name" type="string">
+  Display name of the user
+</ResponseField>
+
+<ResponseField name="Email" type="string">
+  Email address of the user
+</ResponseField>
+
+<ResponseField name="Username" type="string">
+  Unique username for the user
+</ResponseField>
+
+<ResponseField name="Avatar" type="string">
+  URL to the user's avatar image
+</ResponseField>
+
+<ResponseField name="EmailVerified" type="bool">
+  Whether the user's email has been verified
+</ResponseField>
+
+<ResponseField name="AccountType" type="AccountType">
+  Subscription tier (free, pro, or enterprise)
+</ResponseField>
+
+<ResponseField name="Status" type="UserStatus">
+  Account status (active, suspended, or deleted)
+</ResponseField>
+
+<ResponseField name="Verified" type="bool">
+  Whether the user account is verified
+</ResponseField>
+
+<ResponseField name="FolderName" type="string">
+  Custom folder name for organizing content
+</ResponseField>
+
+<ResponseField name="PrivateAccount" type="bool">
+  Whether the user's account is private
+</ResponseField>
+
+<ResponseField name="LastLoginAt" type="*time.Time">
+  Timestamp of the last login (nil if never logged in)
+</ResponseField>
+
+<ResponseField name="CreatedAt" type="time.Time">
+  Timestamp when the user account was created
+</ResponseField>
+
+<ResponseField name="UpdatedAt" type="time.Time">
+  Timestamp when the user account was last updated
+</ResponseField>
+
+<ResponseField name="PushEnabled" type="bool">
+  Whether push notifications are enabled
+</ResponseField>
+
+<ResponseField name="EmailEnabled" type="bool">
+  Whether email notifications are enabled
+</ResponseField>
+
+<ResponseField name="InAppEnabled" type="bool">
+  Whether in-app notifications are enabled
+</ResponseField>
+
+### PublicProfile
+
+Represents a public-facing user profile with limited information.
+
+```go
+type PublicProfile struct {
+    ID             string
+    Name           string
+    Username       string
+    Avatar         string
+    AccountType    AccountType
+    Status         UserStatus
+    Verified       bool
+    CreatedAt      time.Time
+    PrivateAccount bool
+    Role           RoleLevel
+}
+```
+
+<ResponseField name="ID" type="string">
+  Unique identifier for the user
+</ResponseField>
+
+<ResponseField name="Name" type="string">
+  Display name of the user
+</ResponseField>
+
+<ResponseField name="Username" type="string">
+  Unique username for the user
+</ResponseField>
+
+<ResponseField name="Avatar" type="string">
+  URL to the user's avatar image
+</ResponseField>
+
+<ResponseField name="AccountType" type="AccountType">
+  Subscription tier (free, pro, or enterprise)
+</ResponseField>
+
+<ResponseField name="Status" type="UserStatus">
+  Account status (active, suspended, or deleted)
+</ResponseField>
+
+<ResponseField name="Verified" type="bool">
+  Whether the user account is verified
+</ResponseField>
+
+<ResponseField name="CreatedAt" type="time.Time">
+  Timestamp when the user account was created
+</ResponseField>
+
+<ResponseField name="PrivateAccount" type="bool">
+  Whether the user's account is private
+</ResponseField>
+
+<ResponseField name="Role" type="RoleLevel">
+  User's role level (omitted if not applicable)
+</ResponseField>
+
+### UserStatus
+
+Represents the status of a user account.
+
+```go
+type UserStatus string
+
+const (
+    UserStatusActive    UserStatus = "active"
+    UserStatusSuspended UserStatus = "suspended"
+    UserStatusDeleted   UserStatus = "deleted"
+)
+```
+
+**Constants:**
+- `UserStatusActive`: Account is active and in good standing
+- `UserStatusSuspended`: Account has been temporarily suspended
+- `UserStatusDeleted`: Account has been deleted
+
+### AccountType
+
+Represents the subscription type of a user.
+
+```go
+type AccountType string
+
+const (
+    AccountTypeFree       AccountType = "free"
+    AccountTypePro        AccountType = "pro"
+    AccountTypeEnterprise AccountType = "enterprise"
+)
+```
+
+**Constants:**
+- `AccountTypeFree`: Free tier account
+- `AccountTypePro`: Pro subscription account
+- `AccountTypeEnterprise`: Enterprise subscription account
+
+### StorageUsage
+
+Represents basic storage usage information for a user.
+
+```go
+type StorageUsage struct {
+    Used  float64
+    Total float64
+}
+```
+
+<ResponseField name="Used" type="float64">
+  Amount of storage used (in bytes)
+</ResponseField>
+
+<ResponseField name="Total" type="float64">
+  Total storage available (in bytes)
+</ResponseField>
+
+### DetailedStorageUsage
+
+Represents detailed storage usage broken down by category.
+
+```go
+type DetailedStorageUsage struct {
+    Bookmarks float64
+    Archives  float64
+    Files     float64
+    Total     float64
+    Limit     float64
+}
+```
+
+<ResponseField name="Bookmarks" type="float64">
+  Storage used by bookmarks (in bytes)
+</ResponseField>
+
+<ResponseField name="Archives" type="float64">
+  Storage used by archived content (in bytes)
+</ResponseField>
+
+<ResponseField name="Files" type="float64">
+  Storage used by uploaded files (in bytes)
+</ResponseField>
+
+<ResponseField name="Total" type="float64">
+  Total storage used (in bytes)
+</ResponseField>
+
+<ResponseField name="Limit" type="float64">
+  Storage limit for the account (in bytes)
+</ResponseField>
+
+## Bookmark Types
+
+### Bookmark
+
+Represents a saved bookmark with all its properties.
+
+```go
+type Bookmark struct {
+    ID            string
+    UserID        string
+    Title         string
+    Description   string
+    CollectionID  *string
+    Status        BookmarkStatus
+    IsBroken      bool
+    AllowComments bool
+    Tags          string
+    Icon          string
+    Thumbnail     string
+    Processing    bool
+    Type          string
+    URL           string
+    Size          float64
+    Views         int
+    UpdatedByID   *string
+    UpdatedAt     time.Time
+    CreatedAt     time.Time
+    LastOpenedAt  *time.Time
+    ArchiveStatus BookmarkArchiveStatus
+    ArchiveSize   float64
+    RSSFeedID     *string
+    LocalID       *string
+    MimeTypeID    BookmarkMimeType
+}
+```
+
+<ResponseField name="ID" type="string">
+  Unique identifier for the bookmark
+</ResponseField>
+
+<ResponseField name="UserID" type="string">
+  ID of the user who owns the bookmark
+</ResponseField>
+
+<ResponseField name="Title" type="string">
+  Title of the bookmarked content
+</ResponseField>
+
+<ResponseField name="Description" type="string">
+  Description of the bookmarked content (optional)
+</ResponseField>
+
+<ResponseField name="CollectionID" type="*string">
+  ID of the collection containing this bookmark (nil if not in a collection)
+</ResponseField>
+
+<ResponseField name="Status" type="BookmarkStatus">
+  Current status (active or trashed)
+</ResponseField>
+
+<ResponseField name="IsBroken" type="bool">
+  Whether the bookmark URL is broken or inaccessible
+</ResponseField>
+
+<ResponseField name="AllowComments" type="bool">
+  Whether comments are allowed on this bookmark
+</ResponseField>
+
+<ResponseField name="Tags" type="string">
+  Comma-separated list of tags
+</ResponseField>
+
+<ResponseField name="Icon" type="string">
+  URL to the bookmark's favicon
+</ResponseField>
+
+<ResponseField name="Thumbnail" type="string">
+  URL to the bookmark's thumbnail image
+</ResponseField>
+
+<ResponseField name="Processing" type="bool">
+  Whether the bookmark is currently being processed
+</ResponseField>
+
+<ResponseField name="Type" type="string">
+  Type of the bookmark content
+</ResponseField>
+
+<ResponseField name="URL" type="string">
+  URL of the bookmarked resource
+</ResponseField>
+
+<ResponseField name="Size" type="float64">
+  Size of the bookmark content (in bytes)
+</ResponseField>
+
+<ResponseField name="Views" type="int">
+  Number of times the bookmark has been viewed
+</ResponseField>
+
+<ResponseField name="UpdatedByID" type="*string">
+  ID of the user who last updated the bookmark (nil if not updated)
+</ResponseField>
+
+<ResponseField name="UpdatedAt" type="time.Time">
+  Timestamp when the bookmark was last updated
+</ResponseField>
+
+<ResponseField name="CreatedAt" type="time.Time">
+  Timestamp when the bookmark was created
+</ResponseField>
+
+<ResponseField name="LastOpenedAt" type="*time.Time">
+  Timestamp when the bookmark was last opened (nil if never opened)
+</ResponseField>
+
+<ResponseField name="ArchiveStatus" type="BookmarkArchiveStatus">
+  Status of the archive process (pending, success, or failed)
+</ResponseField>
+
+<ResponseField name="ArchiveSize" type="float64">
+  Size of the archived content (in bytes)
+</ResponseField>
+
+<ResponseField name="RSSFeedID" type="*string">
+  ID of the RSS feed this bookmark came from (nil if not from RSS)
+</ResponseField>
+
+<ResponseField name="LocalID" type="*string">
+  Local identifier for the bookmark (nil if not set)
+</ResponseField>
+
+<ResponseField name="MimeTypeID" type="BookmarkMimeType">
+  MIME type identifier for the bookmarked content
+</ResponseField>
+
+### BookmarkWithMeta
+
+Represents a bookmark with additional metadata including owner information.
+
+```go
+type BookmarkWithMeta struct {
+    Bookmark
+    
+    OwnerID        string
+    OwnerName      string
+    OwnerUsername  string
+    OwnerAvatar    string
+    CollectionName *string
+    Starred        bool
+    Role           RoleLevel
+}
+```
+
+<ResponseField name="Bookmark" type="Bookmark">
+  All fields from the base Bookmark struct
+</ResponseField>
+
+<ResponseField name="OwnerID" type="string">
+  ID of the bookmark owner
+</ResponseField>
+
+<ResponseField name="OwnerName" type="string">
+  Display name of the bookmark owner
+</ResponseField>
+
+<ResponseField name="OwnerUsername" type="string">
+  Username of the bookmark owner
+</ResponseField>
+
+<ResponseField name="OwnerAvatar" type="string">
+  URL to the owner's avatar image
+</ResponseField>
+
+<ResponseField name="CollectionName" type="*string">
+  Name of the collection containing this bookmark (nil if not in a collection)
+</ResponseField>
+
+<ResponseField name="Starred" type="bool">
+  Whether the current user has starred this bookmark
+</ResponseField>
+
+<ResponseField name="Role" type="RoleLevel">
+  Current user's role level for this bookmark
+</ResponseField>
+
+### BookmarkStorage
+
+Represents a bookmark with storage-specific information.
+
+```go
+type BookmarkStorage struct {
+    ID             string
+    Title          string
+    Description    string
+    Thumbnail      string
+    Icon           string
+    URL            string
+    CreatedAt      time.Time
+    UpdatedAt      time.Time
+    UserID         string
+    CollectionID   *string
+    CollectionName *string
+    Size           float64
+    MimeTypeID     BookmarkMimeType
+    Status         BookmarkStatus
+}
+```
+
+<ResponseField name="ID" type="string">
+  Unique identifier for the bookmark
+</ResponseField>
+
+<ResponseField name="Title" type="string">
+  Title of the bookmarked content
+</ResponseField>
+
+<ResponseField name="Description" type="string">
+  Description of the bookmarked content
+</ResponseField>
+
+<ResponseField name="Thumbnail" type="string">
+  URL to the bookmark's thumbnail image
+</ResponseField>
+
+<ResponseField name="Icon" type="string">
+  URL to the bookmark's favicon
+</ResponseField>
+
+<ResponseField name="URL" type="string">
+  URL of the bookmarked resource
+</ResponseField>
+
+<ResponseField name="CreatedAt" type="time.Time">
+  Timestamp when the bookmark was created
+</ResponseField>
+
+<ResponseField name="UpdatedAt" type="time.Time">
+  Timestamp when the bookmark was last updated
+</ResponseField>
+
+<ResponseField name="UserID" type="string">
+  ID of the user who owns the bookmark
+</ResponseField>
+
+<ResponseField name="CollectionID" type="*string">
+  ID of the collection containing this bookmark (nil if not in a collection)
+</ResponseField>
+
+<ResponseField name="CollectionName" type="*string">
+  Name of the collection containing this bookmark (nil if not in a collection)
+</ResponseField>
+
+<ResponseField name="Size" type="float64">
+  Size of the bookmark content (in bytes)
+</ResponseField>
+
+<ResponseField name="MimeTypeID" type="BookmarkMimeType">
+  MIME type identifier for the bookmarked content
+</ResponseField>
+
+<ResponseField name="Status" type="BookmarkStatus">
+  Current status (active or trashed)
+</ResponseField>
+
+### BookmarkReader
+
+Represents readable content extracted from a bookmark.
+
+```go
+type BookmarkReader struct {
+    URL         string
+    Title       string
+    ByLine      string
+    Content     string
+    TextContent string
+}
+```
+
+<ResponseField name="URL" type="string">
+  URL of the source content
+</ResponseField>
+
+<ResponseField name="Title" type="string">
+  Title of the content
+</ResponseField>
+
+<ResponseField name="ByLine" type="string">
+  Author or byline of the content
+</ResponseField>
+
+<ResponseField name="Content" type="string">
+  HTML content in reader mode
+</ResponseField>
+
+<ResponseField name="TextContent" type="string">
+  Plain text version of the content
+</ResponseField>
+
+### BookmarkStatus
+
+Represents the status of a bookmark.
+
+```go
+type BookmarkStatus string
+
+const (
+    BookmarkStatusActive  BookmarkStatus = "active"
+    BookmarkStatusTrashed BookmarkStatus = "trashed"
+)
+```
+
+**Constants:**
+- `BookmarkStatusActive`: Bookmark is active and visible
+- `BookmarkStatusTrashed`: Bookmark has been moved to trash
+
+### BookmarkArchiveStatus
+
+Represents the archive status of a bookmark.
+
+```go
+type BookmarkArchiveStatus string
+
+const (
+    BookmarkArchiveStatusPending BookmarkArchiveStatus = "pending"
+    BookmarkArchiveStatusSuccess BookmarkArchiveStatus = "success"
+    BookmarkArchiveStatusFailed  BookmarkArchiveStatus = "failed"
+)
+```
+
+**Constants:**
+- `BookmarkArchiveStatusPending`: Archive is in progress
+- `BookmarkArchiveStatusSuccess`: Archive completed successfully
+- `BookmarkArchiveStatusFailed`: Archive failed
+
+### BookmarkMimeType
+
+Represents the MIME type of a bookmark using integer constants.
+
+```go
+type BookmarkMimeType int
+
+const (
+    BookmarkMimeTypeHTML BookmarkMimeType = iota
+    BookmarkMimeTypePlain
+    BookmarkMimeTypePDF
+    BookmarkMimeTypeZIP
+    BookmarkMimeTypeDOCX
+    BookmarkMimeTypePPTX
+    BookmarkMimeTypeXLSX
+    BookmarkMimeTypeJPG
+    BookmarkMimeTypeJPEG
+    BookmarkMimeTypePNG
+    BookmarkMimeTypeGIF
+    BookmarkMimeTypeWEBP
+    BookmarkMimeTypeSVG
+    BookmarkMimeTypeBMP
+    BookmarkMimeTypeMP3
+    BookmarkMimeTypeWAV
+    BookmarkMimeTypeOGG
+    BookmarkMimeTypeM4A
+    BookmarkMimeTypeMP4Audio
+    BookmarkMimeTypeMP4Video
+    BookmarkMimeTypeWEBM
+)
+```
+
+**Constants:**
+- `BookmarkMimeTypeHTML` (0): HTML document
+- `BookmarkMimeTypePlain` (1): Plain text
+- `BookmarkMimeTypePDF` (2): PDF document
+- `BookmarkMimeTypeZIP` (3): ZIP archive
+- `BookmarkMimeTypeDOCX` (4): Microsoft Word document
+- `BookmarkMimeTypePPTX` (5): Microsoft PowerPoint presentation
+- `BookmarkMimeTypeXLSX` (6): Microsoft Excel spreadsheet
+- `BookmarkMimeTypeJPG` (7): JPEG image
+- `BookmarkMimeTypeJPEG` (8): JPEG image (alternative)
+- `BookmarkMimeTypePNG` (9): PNG image
+- `BookmarkMimeTypeGIF` (10): GIF image
+- `BookmarkMimeTypeWEBP` (11): WebP image
+- `BookmarkMimeTypeSVG` (12): SVG image
+- `BookmarkMimeTypeBMP` (13): BMP image
+- `BookmarkMimeTypeMP3` (14): MP3 audio
+- `BookmarkMimeTypeWAV` (15): WAV audio
+- `BookmarkMimeTypeOGG` (16): OGG audio
+- `BookmarkMimeTypeM4A` (17): M4A audio
+- `BookmarkMimeTypeMP4Audio` (18): MP4 audio
+- `BookmarkMimeTypeMP4Video` (19): MP4 video
+- `BookmarkMimeTypeWEBM` (20): WebM video
+
+## Collection Types
+
+### Collection
+
+Represents a collection of bookmarks.
+
+```go
+type Collection struct {
+    ID              string
+    UserID          string
+    Name            string
+    Description     string
+    Status          CollectionStatus
+    IsPrivate       bool
+    AllowPublicJoin bool
+    Thumbnail       string
+    Icon            string
+    Views           int
+    ParentID        *string
+    UpdatedByID     *string
+    CreatedAt       time.Time
+    UpdatedAt       time.Time
+    LastOpenedAt    *time.Time
+    Role            RoleLevel
+}
+```
+
+<ResponseField name="ID" type="string">
+  Unique identifier for the collection
+</ResponseField>
+
+<ResponseField name="UserID" type="string">
+  ID of the user who owns the collection
+</ResponseField>
+
+<ResponseField name="Name" type="string">
+  Name of the collection
+</ResponseField>
+
+<ResponseField name="Description" type="string">
+  Description of the collection (optional)
+</ResponseField>
+
+<ResponseField name="Status" type="CollectionStatus">
+  Current status (active or inactive)
+</ResponseField>
+
+<ResponseField name="IsPrivate" type="bool">
+  Whether the collection is private
+</ResponseField>
+
+<ResponseField name="AllowPublicJoin" type="bool">
+  Whether users can join this collection publicly
+</ResponseField>
+
+<ResponseField name="Thumbnail" type="string">
+  URL to the collection's thumbnail image
+</ResponseField>
+
+<ResponseField name="Icon" type="string">
+  URL to the collection's icon
+</ResponseField>
+
+<ResponseField name="Views" type="int">
+  Number of times the collection has been viewed
+</ResponseField>
+
+<ResponseField name="ParentID" type="*string">
+  ID of the parent collection (nil if top-level)
+</ResponseField>
+
+<ResponseField name="UpdatedByID" type="*string">
+  ID of the user who last updated the collection (nil if not updated)
+</ResponseField>
+
+<ResponseField name="CreatedAt" type="time.Time">
+  Timestamp when the collection was created
+</ResponseField>
+
+<ResponseField name="UpdatedAt" type="time.Time">
+  Timestamp when the collection was last updated
+</ResponseField>
+
+<ResponseField name="LastOpenedAt" type="*time.Time">
+  Timestamp when the collection was last opened (nil if never opened)
+</ResponseField>
+
+<ResponseField name="Role" type="RoleLevel">
+  Current user's role level for this collection
+</ResponseField>
+
+### CollectionWithMeta
+
+Represents a collection with additional metadata including owner information.
+
+```go
+type CollectionWithMeta struct {
+    Collection
+    
+    OwnerID        string
+    OwnerName      string
+    OwnerUsername  string
+    OwnerAvatar    string
+    BookmarksCount int
+    Role           *RoleLevel
+}
+```
+
+<ResponseField name="Collection" type="Collection">
+  All fields from the base Collection struct
+</ResponseField>
+
+<ResponseField name="OwnerID" type="string">
+  ID of the collection owner
+</ResponseField>
+
+<ResponseField name="OwnerName" type="string">
+  Display name of the collection owner
+</ResponseField>
+
+<ResponseField name="OwnerUsername" type="string">
+  Username of the collection owner
+</ResponseField>
+
+<ResponseField name="OwnerAvatar" type="string">
+  URL to the owner's avatar image
+</ResponseField>
+
+<ResponseField name="BookmarksCount" type="int">
+  Number of bookmarks in this collection
+</ResponseField>
+
+<ResponseField name="Role" type="*RoleLevel">
+  Current user's role level for this collection (nil if not applicable)
+</ResponseField>
+
+### CollectionMember
+
+Represents a member of a collection.
+
+```go
+type CollectionMember struct {
+    ID       string
+    Name     string
+    Username string
+    Avatar   string
+    Role     RoleLevel
+}
+```
+
+<ResponseField name="ID" type="string">
+  Unique identifier for the user
+</ResponseField>
+
+<ResponseField name="Name" type="string">
+  Display name of the member
+</ResponseField>
+
+<ResponseField name="Username" type="string">
+  Username of the member
+</ResponseField>
+
+<ResponseField name="Avatar" type="string">
+  URL to the member's avatar image
+</ResponseField>
+
+<ResponseField name="Role" type="RoleLevel">
+  Member's role level in the collection
+</ResponseField>
+
+### CollectionStatus
+
+Represents the status of a collection.
+
+```go
+type CollectionStatus string
+
+const (
+    CollectionStatusActive   CollectionStatus = "active"
+    CollectionStatusInactive CollectionStatus = "inactive"
+)
+```
+
+**Constants:**
+- `CollectionStatusActive`: Collection is active and accessible
+- `CollectionStatusInactive`: Collection is inactive
+
+### RoleLevel
+
+Represents the role level in a collection.
+
+```go
+type RoleLevel string
+
+const (
+    RoleLevelAdmin  RoleLevel = "admin"
+    RoleLevelViewer RoleLevel = "viewer"
+)
+```
+
+**Constants:**
+- `RoleLevelAdmin`: Admin role with full permissions
+- `RoleLevelViewer`: Viewer role with read-only permissions
+
+## Comment Types
+
+### Comment
+
+Represents a comment on a bookmark.
+
+```go
+type Comment struct {
+    ID        string
+    UserID    string
+    Content   string
+    CreatedAt time.Time
+    UpdatedAt time.Time
+}
+```
+
+<ResponseField name="ID" type="string">
+  Unique identifier for the comment
+</ResponseField>
+
+<ResponseField name="UserID" type="string">
+  ID of the user who created the comment
+</ResponseField>
+
+<ResponseField name="Content" type="string">
+  Text content of the comment
+</ResponseField>
+
+<ResponseField name="CreatedAt" type="time.Time">
+  Timestamp when the comment was created
+</ResponseField>
+
+<ResponseField name="UpdatedAt" type="time.Time">
+  Timestamp when the comment was last updated
+</ResponseField>
+
+### CommentWithMeta
+
+Represents a comment with user information and engagement metrics.
+
+```go
+type CommentWithMeta struct {
+    Comment
+    
+    UserName     string
+    UserUsername string
+    UserAvatar   string
+    LikesCount   int
+    Liked        bool
+}
+```
+
+<ResponseField name="Comment" type="Comment">
+  All fields from the base Comment struct
+</ResponseField>
+
+<ResponseField name="UserName" type="string">
+  Display name of the comment author
+</ResponseField>
+
+<ResponseField name="UserUsername" type="string">
+  Username of the comment author
+</ResponseField>
+
+<ResponseField name="UserAvatar" type="string">
+  URL to the author's avatar image
+</ResponseField>
+
+<ResponseField name="LikesCount" type="int">
+  Number of likes on the comment
+</ResponseField>
+
+<ResponseField name="Liked" type="bool">
+  Whether the current user has liked this comment
+</ResponseField>
+
+## Highlight Types
+
+### Highlight
+
+Represents a text highlight in a bookmark.
+
+```go
+type Highlight struct {
+    ID         string
+    UserID     string
+    BookmarkID string
+    Note       string
+    Exact      string
+    Start      int
+    End        int
+    Color      string
+    CreatedAt  time.Time
+    UpdatedAt  time.Time
+}
+```
+
+<ResponseField name="ID" type="string">
+  Unique identifier for the highlight
+</ResponseField>
+
+<ResponseField name="UserID" type="string">
+  ID of the user who created the highlight
+</ResponseField>
+
+<ResponseField name="BookmarkID" type="string">
+  ID of the bookmark containing this highlight
+</ResponseField>
+
+<ResponseField name="Note" type="string">
+  Optional note attached to the highlight
+</ResponseField>
+
+<ResponseField name="Exact" type="string">
+  Exact text that was highlighted
+</ResponseField>
+
+<ResponseField name="Start" type="int">
+  Start position of the highlight in the text
+</ResponseField>
+
+<ResponseField name="End" type="int">
+  End position of the highlight in the text
+</ResponseField>
+
+<ResponseField name="Color" type="string">
+  Color of the highlight
+</ResponseField>
+
+<ResponseField name="CreatedAt" type="time.Time">
+  Timestamp when the highlight was created
+</ResponseField>
+
+<ResponseField name="UpdatedAt" type="time.Time">
+  Timestamp when the highlight was last updated
+</ResponseField>
+
+### Highlighted
+
+Represents a highlight in W3C Web Annotation format.
+
+```go
+type Highlighted struct {
+    ID         string
+    UserID     string
+    BookmarkID string
+    Note       string
+    Type       string
+    Body       []HighlightedBody
+    Target     HighlightedTarget
+}
+```
+
+<ResponseField name="ID" type="string">
+  Unique identifier for the highlight
+</ResponseField>
+
+<ResponseField name="UserID" type="string">
+  ID of the user who created the highlight
+</ResponseField>
+
+<ResponseField name="BookmarkID" type="string">
+  ID of the bookmark containing this highlight
+</ResponseField>
+
+<ResponseField name="Note" type="string">
+  Optional note attached to the highlight
+</ResponseField>
+
+<ResponseField name="Type" type="string">
+  Annotation type (typically "Annotation")
+</ResponseField>
+
+<ResponseField name="Body" type="[]HighlightedBody">
+  Array of annotation body objects
+</ResponseField>
+
+<ResponseField name="Target" type="HighlightedTarget">
+  Target selector defining what is highlighted
+</ResponseField>
+
+### HighlightedBody
+
+Represents the body of a W3C Web Annotation.
+
+```go
+type HighlightedBody struct {
+    Type    string
+    Value   string
+    Purpose string
+}
+```
+
+<ResponseField name="Type" type="string">
+  Body type (e.g., "TextualBody")
+</ResponseField>
+
+<ResponseField name="Value" type="string">
+  Text content of the body
+</ResponseField>
+
+<ResponseField name="Purpose" type="string">
+  Purpose of the body (e.g., "commenting", "highlighting")
+</ResponseField>
+
+### HighlightedTarget
+
+Represents the target of a W3C Web Annotation.
+
+```go
+type HighlightedTarget struct {
+    Selector []HighlightedTargetSelector
+}
+```
+
+<ResponseField name="Selector" type="[]HighlightedTargetSelector">
+  Array of selectors defining the target
+</ResponseField>
+
+### HighlightedTargetSelector
+
+Represents a selector in a W3C Web Annotation target.
+
+```go
+type HighlightedTargetSelector struct {
+    Type  string
+    Exact string
+    Start int
+    End   int
+}
+```
+
+<ResponseField name="Type" type="string">
+  Selector type (e.g., "TextQuoteSelector", "TextPositionSelector")
+</ResponseField>
+
+<ResponseField name="Exact" type="string">
+  Exact text being selected (optional)
+</ResponseField>
+
+<ResponseField name="Start" type="int">
+  Start position of the selection (optional)
+</ResponseField>
+
+<ResponseField name="End" type="int">
+  End position of the selection (optional)
+</ResponseField>
+
+## Reminder Types
+
+### Reminder
+
+Represents a bookmark reminder.
+
+```go
+type Reminder struct {
+    ID         string
+    UserID     string
+    BookmarkID string
+    RemindAt   time.Time
+    Note       string
+    Completed  bool
+    CreatedAt  time.Time
+    UpdatedAt  time.Time
+}
+```
+
+<ResponseField name="ID" type="string">
+  Unique identifier for the reminder
+</ResponseField>
+
+<ResponseField name="UserID" type="string">
+  ID of the user who created the reminder
+</ResponseField>
+
+<ResponseField name="BookmarkID" type="string">
+  ID of the bookmark this reminder is for
+</ResponseField>
+
+<ResponseField name="RemindAt" type="time.Time">
+  Timestamp when the reminder should trigger
+</ResponseField>
+
+<ResponseField name="Note" type="string">
+  Optional note for the reminder
+</ResponseField>
+
+<ResponseField name="Completed" type="bool">
+  Whether the reminder has been completed
+</ResponseField>
+
+<ResponseField name="CreatedAt" type="time.Time">
+  Timestamp when the reminder was created
+</ResponseField>
+
+<ResponseField name="UpdatedAt" type="time.Time">
+  Timestamp when the reminder was last updated
+</ResponseField>
+
+### ReminderWithMeta
+
+Represents a reminder with bookmark information.
+
+```go
+type ReminderWithMeta struct {
+    Reminder
+    
+    BookmarkTitle     string
+    BookmarkURL       string
+    BookmarkThumbnail string
+}
+```
+
+<ResponseField name="Reminder" type="Reminder">
+  All fields from the base Reminder struct
+</ResponseField>
+
+<ResponseField name="BookmarkTitle" type="string">
+  Title of the associated bookmark
+</ResponseField>
+
+<ResponseField name="BookmarkURL" type="string">
+  URL of the associated bookmark
+</ResponseField>
+
+<ResponseField name="BookmarkThumbnail" type="string">
+  Thumbnail URL of the associated bookmark
+</ResponseField>
+
+## Invite Types
+
+### Invite
+
+Represents a collection invite.
+
+```go
+type Invite struct {
+    ID           string
+    CollectionID string
+    InviterID    string
+    InviteeID    string
+    Role         RoleLevel
+    Status       string
+    CreatedAt    time.Time
+    UpdatedAt    time.Time
+}
+```
+
+<ResponseField name="ID" type="string">
+  Unique identifier for the invite
+</ResponseField>
+
+<ResponseField name="CollectionID" type="string">
+  ID of the collection being invited to
+</ResponseField>
+
+<ResponseField name="InviterID" type="string">
+  ID of the user who sent the invite
+</ResponseField>
+
+<ResponseField name="InviteeID" type="string">
+  ID of the user being invited
+</ResponseField>
+
+<ResponseField name="Role" type="RoleLevel">
+  Role level being offered (admin or viewer)
+</ResponseField>
+
+<ResponseField name="Status" type="string">
+  Status of the invite (e.g., "pending", "accepted", "declined")
+</ResponseField>
+
+<ResponseField name="CreatedAt" type="time.Time">
+  Timestamp when the invite was created
+</ResponseField>
+
+<ResponseField name="UpdatedAt" type="time.Time">
+  Timestamp when the invite was last updated
+</ResponseField>
+
+### InviteWithMeta
+
+Represents an invite with additional information about the collection and inviter.
+
+```go
+type InviteWithMeta struct {
+    Invite
+    
+    CollectionName      string
+    CollectionThumbnail string
+    InviterName         string
+    InviterUsername     string
+    InviterAvatar       string
+}
+```
+
+<ResponseField name="Invite" type="Invite">
+  All fields from the base Invite struct
+</ResponseField>
+
+<ResponseField name="CollectionName" type="string">
+  Name of the collection being invited to
+</ResponseField>
+
+<ResponseField name="CollectionThumbnail" type="string">
+  Thumbnail URL of the collection
+</ResponseField>
+
+<ResponseField name="InviterName" type="string">
+  Display name of the user who sent the invite
+</ResponseField>
+
+<ResponseField name="InviterUsername" type="string">
+  Username of the user who sent the invite
+</ResponseField>
+
+<ResponseField name="InviterAvatar" type="string">
+  Avatar URL of the user who sent the invite
+</ResponseField>
+
+## RSS Feed Types
+
+### RSSFeed
+
+Represents an RSS feed subscription.
+
+```go
+type RSSFeed struct {
+    ID           string
+    UserID       string
+    Title        string
+    URL          string
+    Description  string
+    CollectionID *string
+    LastFetchAt  *time.Time
+    CreatedAt    time.Time
+    UpdatedAt    time.Time
+}
+```
+
+<ResponseField name="ID" type="string">
+  Unique identifier for the RSS feed
+</ResponseField>
+
+<ResponseField name="UserID" type="string">
+  ID of the user who subscribed to the feed
+</ResponseField>
+
+<ResponseField name="Title" type="string">
+  Title of the RSS feed
+</ResponseField>
+
+<ResponseField name="URL" type="string">
+  URL of the RSS feed
+</ResponseField>
+
+<ResponseField name="Description" type="string">
+  Description of the RSS feed (optional)
+</ResponseField>
+
+<ResponseField name="CollectionID" type="*string">
+  ID of the collection for feed items (nil if not set)
+</ResponseField>
+
+<ResponseField name="LastFetchAt" type="*time.Time">
+  Timestamp when the feed was last fetched (nil if never fetched)
+</ResponseField>
+
+<ResponseField name="CreatedAt" type="time.Time">
+  Timestamp when the feed subscription was created
+</ResponseField>
+
+<ResponseField name="UpdatedAt" type="time.Time">
+  Timestamp when the feed subscription was last updated
+</ResponseField>
+
+### RSSFeedWithMeta
+
+Represents an RSS feed with additional information.
+
+```go
+type RSSFeedWithMeta struct {
+    RSSFeed
+    
+    CollectionName string
+    ItemCount      int
+}
+```
+
+<ResponseField name="RSSFeed" type="RSSFeed">
+  All fields from the base RSSFeed struct
+</ResponseField>
+
+<ResponseField name="CollectionName" type="string">
+  Name of the collection for feed items (optional)
+</ResponseField>
+
+<ResponseField name="ItemCount" type="int">
+  Number of items from this feed
+</ResponseField>
+
+### RSSFeedItem
+
+Represents an item from an RSS feed.
+
+```go
+type RSSFeedItem struct {
+    Title       string
+    Description string
+    Link        string
+    Published   string
+    Author      string
+}
+```
+
+<ResponseField name="Title" type="string">
+  Title of the RSS item
+</ResponseField>
+
+<ResponseField name="Description" type="string">
+  Description of the RSS item
+</ResponseField>
+
+<ResponseField name="Link" type="string">
+  URL of the RSS item
+</ResponseField>
+
+<ResponseField name="Published" type="string">
+  Publication date of the item (as string)
+</ResponseField>
+
+<ResponseField name="Author" type="string">
+  Author of the RSS item
+</ResponseField>
+
+## API Key Types
+
+### APIKey
+
+Represents an API key for authentication.
+
+```go
+type APIKey struct {
+    ID         string
+    Name       string
+    Prefix     string
+    Scopes     []string
+    LastUsedAt *time.Time
+    CreatedAt  time.Time
+    ExpiresAt  *time.Time
+}
+```
+
+<ResponseField name="ID" type="string">
+  Unique identifier for the API key
+</ResponseField>
+
+<ResponseField name="Name" type="string">
+  Friendly name for the API key
+</ResponseField>
+
+<ResponseField name="Prefix" type="string">
+  Prefix of the API key (for identification)
+</ResponseField>
+
+<ResponseField name="Scopes" type="[]string">
+  Array of permission scopes for this key
+</ResponseField>
+
+<ResponseField name="LastUsedAt" type="*time.Time">
+  Timestamp when the key was last used (nil if never used)
+</ResponseField>
+
+<ResponseField name="CreatedAt" type="time.Time">
+  Timestamp when the API key was created
+</ResponseField>
+
+<ResponseField name="ExpiresAt" type="*time.Time">
+  Timestamp when the key expires (nil if no expiration)
+</ResponseField>
+
+## Other Types
+
+### ParsedLink
+
+Represents metadata parsed from a URL.
+
+```go
+type ParsedLink struct {
+    URL         string
+    Title       string
+    Description string
+    Image       string
+    Favicon     string
+    Type        string
+    SiteName    string
+}
+```
+
+<ResponseField name="URL" type="string">
+  The parsed URL
+</ResponseField>
+
+<ResponseField name="Title" type="string">
+  Title extracted from the page
+</ResponseField>
+
+<ResponseField name="Description" type="string">
+  Description extracted from the page
+</ResponseField>
+
+<ResponseField name="Image" type="string">
+  URL of the main image
+</ResponseField>
+
+<ResponseField name="Favicon" type="string">
+  URL of the favicon
+</ResponseField>
+
+<ResponseField name="Type" type="string">
+  Content type (e.g., "article", "website")
+</ResponseField>
+
+<ResponseField name="SiteName" type="string">
+  Name of the website
+</ResponseField>
+
+### LoginResult
+
+Holds the tokens and user information returned after successful login.
+
+```go
+type LoginResult struct {
+    AccessToken  string
+    RefreshToken string
+    User         User
+}
+```
+
+<ResponseField name="AccessToken" type="string">
+  JWT access token for API authentication
+</ResponseField>
+
+<ResponseField name="RefreshToken" type="string">
+  JWT refresh token for obtaining new access tokens
+</ResponseField>
+
+<ResponseField name="User" type="User">
+  User information for the logged-in user
+</ResponseField>
+
+### Pagination
+
+Represents pagination information for list responses.
+
+```go
+type Pagination struct {
+    Query    string
+    Total    int64
+    Page     int64
+    Limit    int64
+    LastPage int64
+}
+```
+
+<ResponseField name="Query" type="string">
+  Search query used (optional)
+</ResponseField>
+
+<ResponseField name="Total" type="int64">
+  Total number of items
+</ResponseField>
+
+<ResponseField name="Page" type="int64">
+  Current page number
+</ResponseField>
+
+<ResponseField name="Limit" type="int64">
+  Number of items per page
+</ResponseField>
+
+<ResponseField name="LastPage" type="int64">
+  Last page number
+</ResponseField>
+
+### ListOptions
+
+Represents common options for list operations.
+
+```go
+type ListOptions struct {
+    Page   int64
+    Limit  int64
+    Query  string
+    Status string
+    Sort   string
+}
+```
+
+<ResponseField name="Page" type="int64">
+  Page number to retrieve (starts at 1)
+</ResponseField>
+
+<ResponseField name="Limit" type="int64">
+  Number of items per page
+</ResponseField>
+
+<ResponseField name="Query" type="string">
+  Search query to filter results
+</ResponseField>
+
+<ResponseField name="Status" type="string">
+  Status filter (e.g., "active", "trashed")
+</ResponseField>
+
+<ResponseField name="Sort" type="string">
+  Sort order (e.g., "created_at", "-updated_at")
+</ResponseField>

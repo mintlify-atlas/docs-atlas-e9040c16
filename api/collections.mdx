@@ -1,0 +1,516 @@
+---
+title: 'Collections Service'
+description: 'Complete API reference for collection operations'
+---
+
+The `CollectionsService` handles all collection-related operations including creating, managing, and collaborating on collections.
+
+## Accessing the Service
+
+```go
+client := linkvite.NewClient("your-api-key")
+collections := client.Collections
+```
+
+## List and Retrieve Operations
+
+### List
+
+Retrieves all collections for the current user.
+
+```go
+func (s *CollectionsService) List(ctx context.Context, opts *ListOptions) ([]*CollectionWithMeta, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="opts" type="*ListOptions">
+  Pagination and filtering options
+</ParamField>
+
+<ResponseField name="collections" type="[]*CollectionWithMeta">
+  Array of collections with metadata including owner and bookmark count
+</ResponseField>
+
+**Example**
+
+```go
+collections, err := client.Collections.List(context.Background(), &linkvite.ListOptions{
+    Limit: 50,
+    Sort:  "name",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+for _, col := range collections {
+    fmt.Printf("%s (%d bookmarks)\n", col.Name, col.BookmarksCount)
+}
+```
+
+### Get
+
+Retrieves a single collection by ID.
+
+```go
+func (s *CollectionsService) Get(ctx context.Context, id string) (*CollectionWithMeta, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Collection ID
+</ParamField>
+
+<ResponseField name="collection" type="*CollectionWithMeta">
+  The collection with metadata
+</ResponseField>
+
+**Example**
+
+```go
+collection, err := client.Collections.Get(context.Background(), "collection-123")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Name: %s\nOwner: %s\nBookmarks: %d\n",
+    collection.Name,
+    collection.OwnerName,
+    collection.BookmarksCount,
+)
+```
+
+## Create and Update Operations
+
+### Create
+
+Creates a new collection.
+
+```go
+func (s *CollectionsService) Create(ctx context.Context, input *CreateCollectionInput) (*Collection, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="*CreateCollectionInput" required>
+  <Expandable title="CreateCollectionInput fields">
+    <ParamField path="Name" type="string" required>
+      Collection name
+    </ParamField>
+    <ParamField path="Description" type="string">
+      Collection description
+    </ParamField>
+    <ParamField path="Parent" type="string">
+      Parent collection ID for nested collections
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="collection" type="*Collection">
+  The created collection
+</ResponseField>
+
+**Example**
+
+```go
+collection, err := client.Collections.Create(context.Background(), &linkvite.CreateCollectionInput{
+    Name:        "Go Resources",
+    Description: "Collection of Go programming resources",
+    Parent:      "parent-collection-id", // Optional
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Created collection: %s\n", collection.ID)
+```
+
+### Edit
+
+Updates a collection.
+
+```go
+func (s *CollectionsService) Edit(ctx context.Context, id string, input *EditCollectionInput) (*Collection, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Collection ID
+</ParamField>
+
+<ParamField path="input" type="*EditCollectionInput" required>
+  <Expandable title="EditCollectionInput fields">
+    <ParamField path="Name" type="string">
+      New name
+    </ParamField>
+    <ParamField path="Description" type="*string">
+      New description
+    </ParamField>
+    <ParamField path="IsPrivate" type="*bool">
+      Privacy setting
+    </ParamField>
+    <ParamField path="AllowPublicJoin" type="*bool">
+      Whether to allow public joining
+    </ParamField>
+    <ParamField path="Icon" type="string">
+      Icon URL
+    </ParamField>
+    <ParamField path="Cover" type="string">
+      Cover image URL
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Example**
+
+```go
+private := true
+allowJoin := false
+desc := "Updated description"
+
+collection, err := client.Collections.Edit(context.Background(), "collection-123", &linkvite.EditCollectionInput{
+    Name:            "Updated Name",
+    Description:     &desc,
+    IsPrivate:       &private,
+    AllowPublicJoin: &allowJoin,
+})
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+### Delete
+
+Deletes a collection.
+
+```go
+func (s *CollectionsService) Delete(ctx context.Context, id string) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Collection ID
+</ParamField>
+
+**Example**
+
+```go
+err := client.Collections.Delete(context.Background(), "collection-123")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Collection deleted")
+```
+
+## Organization Operations
+
+### Move
+
+Moves a collection to a new parent or removes it from parent.
+
+```go
+func (s *CollectionsService) Move(ctx context.Context, id string, input *MoveCollectionInput) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Collection ID to move
+</ParamField>
+
+<ParamField path="input" type="*MoveCollectionInput" required>
+  <Expandable title="MoveCollectionInput fields">
+    <ParamField path="Parent" type="*string">
+      New parent collection ID
+    </ParamField>
+    <ParamField path="Remove" type="*bool">
+      Set to true to remove from parent (move to root)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Example**
+
+```go
+// Move to a new parent
+parent := "new-parent-id"
+err := client.Collections.Move(context.Background(), "collection-123", &linkvite.MoveCollectionInput{
+    Parent: &parent,
+})
+
+// Move to root (remove parent)
+remove := true
+err = client.Collections.Move(context.Background(), "collection-123", &linkvite.MoveCollectionInput{
+    Remove: &remove,
+})
+```
+
+### ToggleStar
+
+Toggles the starred status of a collection.
+
+```go
+func (s *CollectionsService) ToggleStar(ctx context.Context, id string) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Collection ID
+</ParamField>
+
+**Example**
+
+```go
+err := client.Collections.ToggleStar(context.Background(), "collection-123")
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+## Member Management
+
+### GetMembers
+
+Retrieves the members of a collection.
+
+```go
+func (s *CollectionsService) GetMembers(ctx context.Context, id string) (*CollectionMembersResult, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Collection ID
+</ParamField>
+
+<ResponseField name="result" type="*CollectionMembersResult">
+  <Expandable title="fields">
+    <ResponseField name="Role" type="RoleLevel">
+      Current user's role ("admin" or "viewer")
+    </ResponseField>
+    <ResponseField name="Members" type="[]*CollectionMember">
+      Array of collection members
+    </ResponseField>
+    <ResponseField name="OwnerID" type="string">
+      ID of the collection owner
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example**
+
+```go
+members, err := client.Collections.GetMembers(context.Background(), "collection-123")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Your role: %s\n", members.Role)
+fmt.Printf("Total members: %d\n", len(members.Members))
+
+for _, member := range members.Members {
+    fmt.Printf("- %s (@%s): %s\n", member.Name, member.Username, member.Role)
+}
+```
+
+### InviteUser
+
+Invites a user to a collection.
+
+```go
+func (s *CollectionsService) InviteUser(ctx context.Context, id string, input *InviteUserInput) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Collection ID
+</ParamField>
+
+<ParamField path="input" type="*InviteUserInput" required>
+  <Expandable title="InviteUserInput fields">
+    <ParamField path="Identifier" type="string" required>
+      Email or username of the user to invite
+    </ParamField>
+    <ParamField path="Role" type="RoleLevel" required>
+      Role to assign: "admin" or "viewer"
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Example**
+
+```go
+err := client.Collections.InviteUser(context.Background(), "collection-123", &linkvite.InviteUserInput{
+    Identifier: "user@example.com",
+    Role:       linkvite.RoleLevelAdmin,
+})
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Invite sent")
+```
+
+### EditMember
+
+Updates a member's role or removes them from the collection.
+
+```go
+func (s *CollectionsService) EditMember(ctx context.Context, id string, input *EditMemberInput) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Collection ID
+</ParamField>
+
+<ParamField path="input" type="*EditMemberInput" required>
+  <Expandable title="EditMemberInput fields">
+    <ParamField path="UserID" type="string" required>
+      ID of the user to modify
+    </ParamField>
+    <ParamField path="Role" type="RoleLevel">
+      New role: "admin" or "viewer"
+    </ParamField>
+    <ParamField path="Remove" type="*bool">
+      Set to true to remove the user
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Example**
+
+```go
+// Change role
+err := client.Collections.EditMember(context.Background(), "collection-123", &linkvite.EditMemberInput{
+    UserID: "user-456",
+    Role:   linkvite.RoleLevelViewer,
+})
+
+// Remove member
+remove := true
+err = client.Collections.EditMember(context.Background(), "collection-123", &linkvite.EditMemberInput{
+    UserID: "user-456",
+    Remove: &remove,
+})
+```
+
+### Leave
+
+Removes the current user from a collection.
+
+```go
+func (s *CollectionsService) Leave(ctx context.Context, id string) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Collection ID to leave
+</ParamField>
+
+**Example**
+
+```go
+err := client.Collections.Leave(context.Background(), "collection-123")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Left collection")
+```
+
+## Presence
+
+### GetPresence
+
+Retrieves online presence information for a collection.
+
+```go
+func (s *CollectionsService) GetPresence(ctx context.Context, id string) (*CollectionPresenceResult, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Collection ID
+</ParamField>
+
+<ResponseField name="presence" type="*CollectionPresenceResult">
+  <Expandable title="fields">
+    <ResponseField name="TotalMembers" type="int64">
+      Total number of collection members
+    </ResponseField>
+    <ResponseField name="OnlineMembers" type="int">
+      Number of members currently online
+    </ResponseField>
+    <ResponseField name="OnlineClients" type="int">
+      Number of active client connections
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example**
+
+```go
+presence, err := client.Collections.GetPresence(context.Background(), "collection-123")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Total: %d | Online: %d | Active clients: %d\n",
+    presence.TotalMembers,
+    presence.OnlineMembers,
+    presence.OnlineClients,
+)
+```
+
+## Error Handling
+
+All methods return an error. Always check for errors:
+
+```go
+collection, err := client.Collections.Get(context.Background(), "collection-123")
+if err != nil {
+    log.Printf("Failed to get collection: %v", err)
+    return
+}
+
+fmt.Println(collection.Name)
+```
+
+## Type Reference
+
+For detailed information about types used in this service, see:
+
+- [Collection Types](/api/types#collection)
+- [Role Levels](/api/types#role-level)
+- [List Options](/api/types#list-options)

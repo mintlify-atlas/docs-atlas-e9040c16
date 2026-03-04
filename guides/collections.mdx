@@ -1,0 +1,446 @@
+---
+title: 'Managing Collections'
+description: 'Organize bookmarks with collections and collaborate with team members'
+icon: 'folder-open'
+---
+
+## Overview
+
+Collections help you organize bookmarks into groups. You can create nested collections, share them with others, and manage team member access with role-based permissions.
+
+## Creating Collections
+
+### Basic Collection
+
+Create a simple collection:
+
+```go
+collection, err := client.Collections.Create(ctx, &linkvite.CreateCollectionInput{
+    Name: "Go Resources",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Created collection: %s\n", collection.ID)
+```
+
+### Collection with Description
+
+Add context with a description:
+
+```go
+collection, err := client.Collections.Create(ctx, &linkvite.CreateCollectionInput{
+    Name:        "Web Development",
+    Description: "Articles, tutorials, and tools for modern web development",
+})
+```
+
+### Nested Collections
+
+Create a sub-collection by specifying a parent:
+
+```go
+collection, err := client.Collections.Create(ctx, &linkvite.CreateCollectionInput{
+    Name:        "React Tutorials",
+    Description: "React-specific learning resources",
+    Parent:      "web-development-id",
+})
+```
+
+<Info>
+Nested collections help you build a hierarchical organization structure for your bookmarks.
+</Info>
+
+## Listing and Retrieving Collections
+
+### List All Collections
+
+Retrieve all your collections:
+
+```go
+collections, err := client.Collections.List(ctx, &linkvite.ListOptions{
+    Limit: 50,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+for _, collection := range collections {
+    fmt.Printf("%s (%d bookmarks)\n", 
+        collection.Name, 
+        collection.BookmarksCount,
+    )
+}
+```
+
+### Search Collections
+
+Find collections by name:
+
+```go
+collections, err := client.Collections.List(ctx, &linkvite.ListOptions{
+    Query: "golang",
+})
+```
+
+### Get Single Collection
+
+Retrieve a specific collection with metadata:
+
+```go
+collection, err := client.Collections.Get(ctx, "collection-id")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Name: %s\n", collection.Name)
+fmt.Printf("Owner: %s\n", collection.OwnerName)
+fmt.Printf("Bookmarks: %d\n", collection.BookmarksCount)
+fmt.Printf("Privacy: Private=%v\n", collection.IsPrivate)
+```
+
+## Editing Collections
+
+### Update Collection Details
+
+Modify name and description:
+
+```go
+collection, err := client.Collections.Edit(ctx, "collection-id", &linkvite.EditCollectionInput{
+    Name:        "Updated Collection Name",
+    Description: stringPtr("Updated description"),
+})
+```
+
+### Change Privacy Settings
+
+Make a collection private or public:
+
+```go
+isPrivate := true
+collection, err := client.Collections.Edit(ctx, "collection-id", &linkvite.EditCollectionInput{
+    IsPrivate: &isPrivate,
+})
+```
+
+### Allow Public Joining
+
+Enable public users to join your collection:
+
+```go
+allowPublicJoin := true
+collection, err := client.Collections.Edit(ctx, "collection-id", &linkvite.EditCollectionInput{
+    AllowPublicJoin: &allowPublicJoin,
+})
+```
+
+### Update Visual Assets
+
+Set custom icon and cover images:
+
+```go
+collection, err := client.Collections.Edit(ctx, "collection-id", &linkvite.EditCollectionInput{
+    Icon:  "https://example.com/icon.png",
+    Cover: "https://example.com/cover.jpg",
+})
+```
+
+## Collaboration
+
+### Get Collection Members
+
+Retrieve all members and their roles:
+
+```go
+members, err := client.Collections.GetMembers(ctx, "collection-id")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Your role: %s\n", members.Role)
+fmt.Printf("Owner ID: %s\n", members.OwnerID)
+
+for _, member := range members.Members {
+    fmt.Printf("- %s (@%s): %s\n", 
+        member.Name, 
+        member.Username,
+        member.Role,
+    )
+}
+```
+
+### Invite Users to Collection
+
+Invite a user by email or username with a specific role:
+
+```go
+err := client.Collections.InviteUser(ctx, "collection-id", &linkvite.InviteUserInput{
+    Identifier: "user@example.com",
+    Role:       linkvite.RoleLevelAdmin,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println("Invitation sent")
+```
+
+<Note>
+**Available Roles:**
+- `RoleLevelAdmin`: Full access including member management
+- `RoleLevelViewer`: Read-only access to collection bookmarks
+</Note>
+
+### Invite Multiple Users
+
+Invite several users to collaborate:
+
+```go
+users := []struct {
+    Email string
+    Role  linkvite.RoleLevel
+}{
+    {"alice@example.com", linkvite.RoleLevelAdmin},
+    {"bob@example.com", linkvite.RoleLevelViewer},
+}
+
+for _, user := range users {
+    err := client.Collections.InviteUser(ctx, "collection-id", &linkvite.InviteUserInput{
+        Identifier: user.Email,
+        Role:       user.Role,
+    })
+    if err != nil {
+        log.Printf("Failed to invite %s: %v", user.Email, err)
+    }
+}
+```
+
+### Change Member Role
+
+Update a member's permissions:
+
+```go
+err := client.Collections.EditMember(ctx, "collection-id", &linkvite.EditMemberInput{
+    UserID: "user-id",
+    Role:   linkvite.RoleLevelViewer,
+})
+```
+
+### Remove Member
+
+Remove a user from the collection:
+
+```go
+remove := true
+err := client.Collections.EditMember(ctx, "collection-id", &linkvite.EditMemberInput{
+    UserID: "user-id",
+    Remove: &remove,
+})
+```
+
+### Leave Collection
+
+Remove yourself from a shared collection:
+
+```go
+err := client.Collections.Leave(ctx, "collection-id")
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+<Warning>
+You cannot leave a collection if you're the owner. Transfer ownership or delete the collection instead.
+</Warning>
+
+## Organizing Collections
+
+### Move Collection to New Parent
+
+Reorganize your collection hierarchy:
+
+```go
+parent := "new-parent-id"
+err := client.Collections.Move(ctx, "collection-id", &linkvite.MoveCollectionInput{
+    Parent: &parent,
+})
+```
+
+### Move to Root Level
+
+Remove a collection from its parent:
+
+```go
+remove := true
+err := client.Collections.Move(ctx, "collection-id", &linkvite.MoveCollectionInput{
+    Remove: &remove,
+})
+```
+
+### Starring Collections
+
+Mark collections as favorites:
+
+```go
+err := client.Collections.ToggleStar(ctx, "collection-id")
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+## Deleting Collections
+
+Permanently delete a collection:
+
+```go
+err := client.Collections.Delete(ctx, "collection-id")
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+<Warning>
+Deleting a collection removes it permanently. Bookmarks in the collection are not deleted, but their collection association is removed.
+</Warning>
+
+## Advanced Features
+
+### Get Online Presence
+
+Check who's currently viewing the collection:
+
+```go
+presence, err := client.Collections.GetPresence(ctx, "collection-id")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Total members: %d\n", presence.TotalMembers)
+fmt.Printf("Online members: %d\n", presence.OnlineMembers)
+fmt.Printf("Active clients: %d\n", presence.OnlineClients)
+```
+
+## Complete Workflow Example
+
+Here's a complete workflow demonstrating collection creation, organization, and collaboration:
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "github.com/yourusername/linkvite-go"
+)
+
+func main() {
+    ctx := context.Background()
+    client := linkvite.NewClient("your-api-key")
+
+    // Create main collection
+    parent, err := client.Collections.Create(ctx, &linkvite.CreateCollectionInput{
+        Name:        "Engineering Resources",
+        Description: "Technical articles and documentation",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("Created parent collection: %s\n", parent.ID)
+
+    // Create sub-collections
+    subcollections := []string{"Backend", "Frontend", "DevOps"}
+    for _, name := range subcollections {
+        sub, err := client.Collections.Create(ctx, &linkvite.CreateCollectionInput{
+            Name:   name,
+            Parent: parent.ID,
+        })
+        if err != nil {
+            log.Printf("Failed to create %s: %v", name, err)
+            continue
+        }
+        fmt.Printf("Created sub-collection: %s\n", sub.Name)
+    }
+
+    // Make parent collection collaborative
+    isPrivate := false
+    allowJoin := true
+    _, err = client.Collections.Edit(ctx, parent.ID, &linkvite.EditCollectionInput{
+        IsPrivate:       &isPrivate,
+        AllowPublicJoin: &allowJoin,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Invite team members
+    err = client.Collections.InviteUser(ctx, parent.ID, &linkvite.InviteUserInput{
+        Identifier: "teammate@example.com",
+        Role:       linkvite.RoleLevelAdmin,
+    })
+    if err != nil {
+        log.Printf("Failed to invite user: %v", err)
+    }
+
+    // Check members
+    members, err := client.Collections.GetMembers(ctx, parent.ID)
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("Collection has %d members\n", len(members.Members))
+
+    // Add bookmarks to sub-collection
+    _, err = client.Bookmarks.Create(ctx, &linkvite.CreateBookmarkInput{
+        URL:        "https://go.dev/doc/",
+        Collection: parent.ID,
+        Tags:       "golang,documentation",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Println("Workflow completed successfully")
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Organizing Collections">
+    - Use descriptive names that clearly indicate the collection's purpose
+    - Create a logical hierarchy with parent/child relationships
+    - Keep nesting depth reasonable (2-3 levels maximum)
+    - Use tags in addition to collections for cross-cutting concerns
+  </Accordion>
+
+  <Accordion title="Collaboration Guidelines">
+    - Use `RoleLevelAdmin` for team members who need to manage bookmarks
+    - Use `RoleLevelViewer` for read-only access (e.g., stakeholders)
+    - Regularly review collection members and remove inactive users
+    - Enable `AllowPublicJoin` only for truly public collections
+  </Accordion>
+
+  <Accordion title="Privacy Considerations">
+    - Set `IsPrivate: true` for sensitive or personal collections
+    - Review privacy settings before inviting external collaborators
+    - Use nested collections to inherit privacy settings naturally
+  </Accordion>
+</AccordionGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Bookmarks Guide" icon="bookmark" href="/guides/bookmarks">
+    Learn how to create and manage bookmarks
+  </Card>
+  <Card title="User Management" icon="users" href="/api/user">
+    View user profile and settings operations
+  </Card>
+  <Card title="Invites API" icon="envelope" href="/api/invites">
+    Manage collection invitations
+  </Card>
+  <Card title="Collections API" icon="folder" href="/api/collections">
+    Complete API reference for collections
+  </Card>
+</CardGroup>

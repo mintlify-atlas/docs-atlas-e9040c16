@@ -1,0 +1,306 @@
+---
+title: 'Comments Service'
+description: 'Complete API reference for comment operations'
+---
+
+The `CommentsService` handles operations for commenting on bookmarks, including creating, deleting, liking, and reporting comments.
+
+## Accessing the Service
+
+```go
+client := linkvite.NewClient("your-api-key")
+comments := client.Comments
+```
+
+## List and Retrieve Operations
+
+### List
+
+Retrieves all comments for a bookmark.
+
+```go
+func (s *CommentsService) List(ctx context.Context, bookmarkID string) ([]*CommentWithMeta, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="bookmarkID" type="string" required>
+  ID of the bookmark to get comments for
+</ParamField>
+
+<ResponseField name="comments" type="[]*CommentWithMeta">
+  Array of comments with user information and metadata
+</ResponseField>
+
+**Example**
+
+```go
+comments, err := client.Comments.List(context.Background(), "bookmark-123")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Total comments: %d\n", len(comments))
+for _, comment := range comments {
+    fmt.Printf("@%s: %s\n", comment.UserUsername, comment.Content)
+    fmt.Printf("  Likes: %d | Liked by you: %v\n", comment.LikesCount, comment.Liked)
+}
+```
+
+## Create Operations
+
+### Create
+
+Creates a new comment on a bookmark.
+
+```go
+func (s *CommentsService) Create(ctx context.Context, input *CreateCommentInput) (*Comment, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="*CreateCommentInput" required>
+  <Expandable title="CreateCommentInput fields">
+    <ParamField path="BookmarkID" type="string" required>
+      ID of the bookmark to comment on
+    </ParamField>
+    <ParamField path="Content" type="string" required>
+      The comment text
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="comment" type="*Comment">
+  The created comment
+</ResponseField>
+
+**Example**
+
+```go
+comment, err := client.Comments.Create(context.Background(), &linkvite.CreateCommentInput{
+    BookmarkID: "bookmark-123",
+    Content:    "Great article! Thanks for sharing.",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Comment created: %s\n", comment.ID)
+```
+
+## Delete Operations
+
+### Delete
+
+Deletes a comment.
+
+```go
+func (s *CommentsService) Delete(ctx context.Context, id string) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Comment ID to delete
+</ParamField>
+
+**Example**
+
+```go
+err := client.Comments.Delete(context.Background(), "comment-456")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Comment deleted")
+```
+
+<Note>
+  You can only delete comments that you created, unless you have admin permissions on the collection.
+</Note>
+
+## Like Operations
+
+### ToggleLike
+
+Toggles the like status of a comment.
+
+```go
+func (s *CommentsService) ToggleLike(ctx context.Context, id string) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Comment ID to like/unlike
+</ParamField>
+
+**Example**
+
+```go
+// Like a comment (or unlike if already liked)
+err := client.Comments.ToggleLike(context.Background(), "comment-456")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Like toggled")
+```
+
+### GetLikes
+
+Retrieves users who liked a comment.
+
+```go
+func (s *CommentsService) GetLikes(ctx context.Context, id string) ([]*PublicProfile, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Comment ID
+</ParamField>
+
+<ResponseField name="profiles" type="[]*PublicProfile">
+  Array of public profiles who liked the comment
+</ResponseField>
+
+**Example**
+
+```go
+profiles, err := client.Comments.GetLikes(context.Background(), "comment-456")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("%d users liked this comment:\n", len(profiles))
+for _, profile := range profiles {
+    fmt.Printf("- %s (@%s)\n", profile.Name, profile.Username)
+}
+```
+
+## Moderation Operations
+
+### Report
+
+Reports a comment for moderation.
+
+```go
+func (s *CommentsService) Report(ctx context.Context, id string) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Comment ID to report
+</ParamField>
+
+**Example**
+
+```go
+err := client.Comments.Report(context.Background(), "comment-456")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Comment reported for review")
+```
+
+<Info>
+  Use this feature to report inappropriate, spam, or abusive comments. The comment will be reviewed by moderators.
+</Info>
+
+## Complete Comments Example
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "github.com/yourusername/linkvite-go"
+)
+
+func main() {
+    client := linkvite.NewClient("your-api-key")
+    ctx := context.Background()
+    bookmarkID := "bookmark-123"
+
+    // Get existing comments
+    comments, err := client.Comments.List(ctx, bookmarkID)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("Existing comments: %d\n\n", len(comments))
+
+    // Display comments
+    for _, comment := range comments {
+        fmt.Printf("@%s (%s):\n", comment.UserUsername, comment.UserName)
+        fmt.Printf("%s\n", comment.Content)
+        fmt.Printf("Likes: %d | Created: %s\n\n", 
+            comment.LikesCount, 
+            comment.CreatedAt.Format("Jan 2, 2006"),
+        )
+    }
+
+    // Add a new comment
+    newComment, err := client.Comments.Create(ctx, &linkvite.CreateCommentInput{
+        BookmarkID: bookmarkID,
+        Content:    "This is a great resource!",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("New comment created: %s\n", newComment.ID)
+
+    // Like the first comment
+    if len(comments) > 0 {
+        err = client.Comments.ToggleLike(ctx, comments[0].ID)
+        if err != nil {
+            log.Fatal(err)
+        }
+        fmt.Println("Liked the first comment")
+
+        // See who liked it
+        likes, err := client.Comments.GetLikes(ctx, comments[0].ID)
+        if err != nil {
+            log.Fatal(err)
+        }
+        fmt.Printf("Comment has %d likes\n", len(likes))
+    }
+}
+```
+
+## Error Handling
+
+All methods return an error. Always check for errors:
+
+```go
+comments, err := client.Comments.List(context.Background(), "bookmark-123")
+if err != nil {
+    log.Printf("Failed to get comments: %v", err)
+    return
+}
+
+for _, comment := range comments {
+    fmt.Println(comment.Content)
+}
+```
+
+## Type Reference
+
+For detailed information about types used in this service, see:
+
+- [Comment Types](/api/types#comment)
+- [Public Profile](/api/types#public-profile)

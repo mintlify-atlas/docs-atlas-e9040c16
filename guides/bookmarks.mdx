@@ -1,0 +1,404 @@
+---
+title: 'Working with Bookmarks'
+description: 'Learn how to create, organize, and manage bookmarks in your Linkvite workspace'
+icon: 'bookmark'
+---
+
+## Overview
+
+Bookmarks are the core of Linkvite. You can save URLs, organize them with tags and collections, star favorites, and check for duplicates. This guide covers all bookmark operations with real examples.
+
+## Creating Bookmarks
+
+### Basic Bookmark Creation
+
+Create a bookmark with just a URL. Linkvite automatically fetches metadata like title and description:
+
+```go
+bookmark, err := client.Bookmarks.Create(ctx, &linkvite.CreateBookmarkInput{
+    URL: "https://example.com",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Created bookmark: %s\n", bookmark.ID)
+```
+
+### Creating with Custom Metadata
+
+You can specify custom title, description, tags, and collection:
+
+```go
+starred := true
+bookmark, err := client.Bookmarks.Create(ctx, &linkvite.CreateBookmarkInput{
+    URL:         "https://golang.org/doc/",
+    Title:       "Go Documentation",
+    Description: "Official Go programming language documentation",
+    Collection:  "tech-resources",
+    Tags:        "golang,programming,documentation",
+    Starred:     &starred,
+})
+```
+
+<Info>
+Tags are comma-separated strings. Use the `Tags` field to organize bookmarks by topic.
+</Info>
+
+### Creating Manual Bookmarks
+
+Create bookmarks with complete manual control over metadata, including favicon and comment settings:
+
+```go
+allowComments := true
+bookmarks, err := client.Bookmarks.CreateManual(ctx, []*linkvite.CreateManualBookmarkInput{
+    {
+        Title:         "My Custom Resource",
+        URL:           "https://example.com/resource",
+        Description:   "A detailed description",
+        Collection:    "collection-id",
+        Tags:          "resource,custom",
+        Favicon:       "https://example.com/favicon.ico",
+        AllowComments: &allowComments,
+    },
+})
+```
+
+### Creating from Browser Tabs
+
+Save multiple browser tabs at once:
+
+```go
+bookmarks, err := client.Bookmarks.CreateFromTabs(ctx, &linkvite.CreateTabsBookmarksInput{
+    Collection: "reading-list",
+    Tabs: []linkvite.TabBookmark{
+        {URL: "https://blog.golang.org", Title: "Go Blog"},
+        {URL: "https://pkg.go.dev", Title: "Go Packages"},
+    },
+})
+```
+
+## Listing and Retrieving Bookmarks
+
+### List All Bookmarks
+
+Retrieve your bookmarks with pagination:
+
+```go
+result, err := client.Bookmarks.List(ctx, &linkvite.ListOptions{
+    Page:  1,
+    Limit: 20,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+for _, bookmark := range result.Bookmarks {
+    fmt.Printf("%s: %s\n", bookmark.Title, bookmark.URL)
+}
+
+fmt.Printf("Total: %d, Page: %d/%d\n", 
+    result.Pagination.Total,
+    result.Pagination.Page,
+    result.Pagination.LastPage,
+)
+```
+
+### Search Bookmarks
+
+Use the `Query` parameter to search:
+
+```go
+result, err := client.Bookmarks.List(ctx, &linkvite.ListOptions{
+    Query: "golang",
+    Limit: 10,
+})
+```
+
+### Filter by Status
+
+Retrieve only active or trashed bookmarks:
+
+```go
+result, err := client.Bookmarks.List(ctx, &linkvite.ListOptions{
+    Status: string(linkvite.BookmarkStatusActive),
+})
+```
+
+### Get Single Bookmark
+
+Retrieve a specific bookmark with all metadata:
+
+```go
+bookmark, err := client.Bookmarks.Get(ctx, "bookmark-id")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Title: %s\n", bookmark.Title)
+fmt.Printf("URL: %s\n", bookmark.URL)
+fmt.Printf("Tags: %s\n", bookmark.Tags)
+fmt.Printf("Starred: %v\n", bookmark.Starred)
+```
+
+### Get Readable Content
+
+Extract clean, readable content from a bookmark:
+
+```go
+reader, err := client.Bookmarks.GetReader(ctx, "bookmark-id")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Title: %s\n", reader.Title)
+fmt.Printf("Author: %s\n", reader.ByLine)
+fmt.Printf("Content: %s\n", reader.TextContent)
+```
+
+## Organizing Bookmarks
+
+### List by Collection
+
+Get all bookmarks from a specific collection:
+
+```go
+result, err := client.Bookmarks.ListByCollection(ctx, "collection-id", &linkvite.ListOptions{
+    Limit: 50,
+})
+```
+
+### List by Tag
+
+Retrieve bookmarks with a specific tag:
+
+```go
+result, err := client.Bookmarks.ListByTag(ctx, "golang", &linkvite.ListOptions{
+    Page:  1,
+    Limit: 20,
+})
+```
+
+### Starring Bookmarks
+
+Toggle the starred status of a bookmark:
+
+```go
+err := client.Bookmarks.ToggleStar(ctx, "bookmark-id")
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+Star multiple bookmarks at once:
+
+```go
+starred := true
+err := client.Bookmarks.BatchToggleStar(ctx, &linkvite.BatchToggleStarInput{
+    Value:     &starred,
+    Bookmarks: []string{"bookmark-1", "bookmark-2", "bookmark-3"},
+})
+```
+
+<Tip>
+Use `nil` for `Value` to toggle the current state, or `true`/`false` to explicitly star or unstar.
+</Tip>
+
+## Editing Bookmarks
+
+### Update Bookmark Properties
+
+Modify bookmark title, URL, tags, or collection:
+
+```go
+newCollection := "new-collection-id"
+bookmark, err := client.Bookmarks.Edit(ctx, "bookmark-id", &linkvite.EditBookmarkInput{
+    Name:       "Updated Title",
+    Tags:       "golang,web,api",
+    Collection: &newCollection,
+})
+```
+
+### Change Bookmark Status
+
+Move bookmarks to trash:
+
+```go
+bookmark, err := client.Bookmarks.Edit(ctx, "bookmark-id", &linkvite.EditBookmarkInput{
+    Status: linkvite.BookmarkStatusTrashed,
+})
+```
+
+### Batch Edit Bookmarks
+
+Update multiple bookmarks simultaneously:
+
+```go
+err := client.Bookmarks.BatchEdit(ctx, &linkvite.BatchEditBookmarkInput{
+    Bookmarks:  []string{"bookmark-1", "bookmark-2", "bookmark-3"},
+    Tags:       stringPtr("golang,batch-updated"),
+    Collection: "new-collection-id",
+})
+```
+
+### Toggle Comments
+
+Enable or disable comments on a bookmark:
+
+```go
+allowComments := true
+bookmark, err := client.Bookmarks.Edit(ctx, "bookmark-id", &linkvite.EditBookmarkInput{
+    AllowComments: &allowComments,
+})
+```
+
+## Checking for Duplicates
+
+Before creating a bookmark, check if it already exists:
+
+```go
+result, err := client.Bookmarks.Exists(ctx, &linkvite.BookmarkExistsInput{
+    URL: "https://example.com/article",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+if result.Exists {
+    fmt.Printf("Bookmark already exists: %s\n", result.Bookmark.Title)
+} else {
+    fmt.Println("URL not bookmarked yet")
+}
+```
+
+### Check in Specific Collection
+
+Verify if a URL exists in a particular collection:
+
+```go
+result, err := client.Bookmarks.Exists(ctx, &linkvite.BookmarkExistsInput{
+    URL:        "https://example.com/article",
+    Collection: "collection-id",
+})
+```
+
+## Deleting Bookmarks
+
+### Delete Single Bookmark
+
+Permanently delete a bookmark:
+
+```go
+err := client.Bookmarks.Delete(ctx, "bookmark-id")
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+<Warning>
+Deleting a bookmark is permanent and cannot be undone. Consider moving to trash first using `BookmarkStatusTrashed`.
+</Warning>
+
+## Advanced Features
+
+### Request Archive
+
+Request a permanent archive of a bookmark's content:
+
+```go
+err := client.Bookmarks.RequestArchive(ctx, "bookmark-id")
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+### List All Without Pagination
+
+Retrieve all bookmarks in a single request:
+
+```go
+result, err := client.Bookmarks.ListAll(ctx)
+```
+
+<Note>
+Use `ListAll()` carefully with large collections as it returns all bookmarks at once.
+</Note>
+
+## Complete Workflow Example
+
+Here's a complete workflow that demonstrates creating, organizing, and managing bookmarks:
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "github.com/yourusername/linkvite-go"
+)
+
+func main() {
+    ctx := context.Background()
+    client := linkvite.NewClient("your-api-key")
+
+    // Check if bookmark exists
+    url := "https://go.dev/blog/go1.21"
+    exists, err := client.Bookmarks.Exists(ctx, &linkvite.BookmarkExistsInput{
+        URL: url,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    if exists.Exists {
+        fmt.Println("Bookmark already exists, updating...")
+        _, err = client.Bookmarks.Edit(ctx, exists.Bookmark.ID, &linkvite.EditBookmarkInput{
+            Tags: "golang,updates,go1.21",
+        })
+    } else {
+        fmt.Println("Creating new bookmark...")
+        starred := true
+        _, err = client.Bookmarks.Create(ctx, &linkvite.CreateBookmarkInput{
+            URL:        url,
+            Collection: "golang-resources",
+            Tags:       "golang,updates,go1.21",
+            Starred:    &starred,
+        })
+    }
+    
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // List all bookmarks with golang tag
+    result, err := client.Bookmarks.ListByTag(ctx, "golang", &linkvite.ListOptions{
+        Limit: 10,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("Found %d golang bookmarks\n", len(result.Bookmarks))
+    for _, bookmark := range result.Bookmarks {
+        fmt.Printf("- %s (%s)\n", bookmark.Title, bookmark.URL)
+    }
+}
+```
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Collections Guide" icon="folder" href="/guides/collections">
+    Learn how to organize bookmarks into collections
+  </Card>
+  <Card title="Tags Guide" icon="tag" href="/guides/bookmarks#organizing-with-tags">
+    Master tagging strategies for bookmarks
+  </Card>
+  <Card title="Highlights Guide" icon="highlighter" href="/guides/highlights">
+    Add text highlights to bookmarks
+  </Card>
+  <Card title="Reminders Guide" icon="bell" href="/guides/reminders">
+    Set reminders for bookmarks
+  </Card>
+</CardGroup>

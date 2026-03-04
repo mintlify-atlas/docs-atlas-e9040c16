@@ -1,0 +1,637 @@
+---
+title: Access token authentication
+description: Manage user sessions with access tokens and refresh tokens
+---
+
+Access token authentication provides OAuth-style token management with automatic refresh capabilities. This method is ideal for web applications, mobile apps, and any scenario where you need to maintain user-specific sessions.
+
+## Creating a client with tokens
+
+The SDK provides multiple ways to create a client with access tokens:
+
+```go linkvite.go
+func NewClientWithTokens(accessToken, refreshToken string, opts ...Option) (*Client, error)
+```
+
+<CodeGroup>
+```go With tokens
+import linkvite "github.com/linkvite/go"
+
+client, err := linkvite.NewClientWithTokens(
+    "your-access-token",
+    "your-refresh-token",
+)
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+```go Using options
+client, err := linkvite.NewClient("",
+    linkvite.WithTokens("access-token", "refresh-token"),
+)
+```
+
+```go Access token only
+client, err := linkvite.NewClient("",
+    linkvite.WithAccessToken("your-access-token"),
+)
+```
+
+```go README.md
+// Using access token with refresh token
+client, err := linkvite.NewClientWithTokens("access-token", "refresh-token")
+
+// Or using options
+client, err := linkvite.NewClient("",
+    linkvite.WithTokens("access-token", "refresh-token"),
+)
+
+// Refresh the access token when needed
+err := client.RefreshAccessToken(ctx)
+```
+</CodeGroup>
+
+<Note>
+Providing a refresh token enables token refresh. Without it, you'll need to re-authenticate when the access token expires.
+</Note>
+
+## How access tokens work
+
+When you create a client with an access token, the SDK:
+
+1. Validates the token is not empty
+2. Sets the authentication type to `AuthTypeAccessToken`
+3. Includes the token in all API requests via the `Authorization` header
+
+```go linkvite.go
+switch c.authType {
+case AuthTypeAPIKey:
+    req.Header.Set("x-api-key", c.apiKey)
+case AuthTypeAccessToken:
+    req.Header.Set("Authorization", "Bearer "+c.accessToken)
+}
+```
+
+The access token is sent as a Bearer token in the HTTP Authorization header.
+
+## Obtaining tokens
+
+You can obtain access tokens in two ways:
+
+### Using credentials
+
+Authenticate with username/email and password to get tokens:
+
+```go linkvite.go
+func Login(ctx context.Context, identifier, password string, opts ...Option) (*LoginResult, error)
+```
+
+```go Usage example
+import (
+    "context"
+    "fmt"
+    "log"
+    
+    linkvite "github.com/linkvite/go"
+)
+
+result, err := linkvite.Login(
+    context.Background(),
+    "user@example.com",
+    "password",
+)
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Access Token: %s\n", result.AccessToken)
+fmt.Printf("Refresh Token: %s\n", result.RefreshToken)
+fmt.Printf("User: %s (%s)\n", result.User.Name, result.User.Email)
+```
+
+The `LoginResult` contains:
+- `AccessToken` - Token for API authentication
+- `RefreshToken` - Token for obtaining new access tokens
+- `User` - Complete user information
+
+### Creating a client directly
+
+Combine login and client creation in one step:
+
+```go linkvite.go
+func NewClientWithCredentials(ctx context.Context, identifier, password string, opts ...Option) (*Client, error)
+```
+
+```go example/main.go
+client, err := linkvite.NewClientWithCredentials(
+    context.Background(),
+    os.Getenv("LINKVITE_IDENTIFIER"),
+    os.Getenv("LINKVITE_PASSWORD"),
+    linkvite.WithBaseURL(baseURL),
+)
+if err != nil {
+    log.Fatal(err)
+}
+
+ctx := context.Background()
+user, err := client.User.Get(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Hello, %s!\n", user.Name)
+```
+
+The `identifier` parameter accepts either a username or email address.
+
+<Info>
+`NewClientWithCredentials` internally calls `Login` and then `NewClientWithTokens` with the returned tokens.
+</Info>
+
+## Token refresh
+
+Access tokens have limited lifetimes and expire after a period of time. When you have a refresh token, you can obtain a new access token without requiring the user to log in again.
+
+### Refreshing tokens
+
+Use the `RefreshAccessToken` method to refresh your tokens:
+
+```go linkvite.go
+func (c *Client) RefreshAccessToken(ctx context.Context) error
+```
+
+```go example/main.go
+err := client.RefreshAccessToken(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println("Access token refreshed successfully")
+```
+
+The method:
+1. Sends the refresh token to the API
+2. Receives new access and refresh tokens
+3. Updates the client's stored tokens automatically
+
+<Note>
+Both the access token **and** refresh token are updated during refresh. Always store the new refresh token for future use.
+</Note>
+
+### Handling token expiration
+
+Implement token refresh logic to handle expired access tokens:
+
+```go Token refresh example
+func makeRequest(ctx context.Context, client *linkvite.Client) error {
+    user, err := client.User.Get(ctx)
+    if err != nil {
+        if apiErr, ok := err.(*linkvite.Error); ok {
+            if apiErr.IsUnauthorized() {
+                // Token expired, try to refresh
+                if refreshErr := client.RefreshAccessToken(ctx); refreshErr != nil {
+                    return fmt.Errorf("failed to refresh token: %w", refreshErr)
+                }
+                
+                // Retry the request
+                user, err = client.User.Get(ctx)
+                if err != nil {
+                    return err
+                }
+            }
+        } else {
+            return err
+        }
+    }
+    
+    fmt.Printf("User: %s\n", user.Name)
+    return nil
+}
+```
+
+### Proactive token refresh
+
+For better user experience, refresh tokens before they expire:
+
+```go Proactive refresh
+import "time"
+
+func maintainTokens(ctx context.Context, client *linkvite.Client) {
+    ticker := time.NewTicker(45 * time.Minute)
+    defer ticker.Stop()
+    
+    for {
+        select {
+        case <-ticker.C:
+            if err := client.RefreshAccessToken(ctx); err != nil {
+                log.Printf("Failed to refresh token: %v", err)
+            } else {
+                log.Println("Token refreshed successfully")
+            }
+        case <-ctx.Done():
+            return
+        }
+    }
+}
+```
+
+<Warning>
+If token refresh fails, the user will need to re-authenticate by logging in again.
+</Warning>
+
+## Storing tokens securely
+
+Tokens should be stored securely between sessions. Here are common approaches:
+
+<Tabs>
+  <Tab title="Environment variables">
+    For server-side applications:
+    
+    ```go
+    import "os"
+    
+    // Store tokens
+    os.Setenv("LINKVITE_ACCESS_TOKEN", result.AccessToken)
+    os.Setenv("LINKVITE_REFRESH_TOKEN", result.RefreshToken)
+    
+    // Load tokens
+    accessToken := os.Getenv("LINKVITE_ACCESS_TOKEN")
+    refreshToken := os.Getenv("LINKVITE_REFRESH_TOKEN")
+    
+    client, err := linkvite.NewClientWithTokens(accessToken, refreshToken)
+    ```
+  </Tab>
+  
+  <Tab title="File storage">
+    For CLI applications:
+    
+    ```go
+    import (
+        "encoding/json"
+        "os"
+    )
+    
+    type TokenStore struct {
+        AccessToken  string `json:"access_token"`
+        RefreshToken string `json:"refresh_token"`
+    }
+    
+    // Save tokens
+    func saveTokens(access, refresh string) error {
+        store := TokenStore{
+            AccessToken:  access,
+            RefreshToken: refresh,
+        }
+        
+        data, err := json.Marshal(store)
+        if err != nil {
+            return err
+        }
+        
+        return os.WriteFile(".linkvite-tokens", data, 0600)
+    }
+    
+    // Load tokens
+    func loadTokens() (*TokenStore, error) {
+        data, err := os.ReadFile(".linkvite-tokens")
+        if err != nil {
+            return nil, err
+        }
+        
+        var store TokenStore
+        if err := json.Unmarshal(data, &store); err != nil {
+            return nil, err
+        }
+        
+        return &store, nil
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Database">
+    For web applications:
+    
+    ```go
+    type Session struct {
+        UserID       string
+        AccessToken  string
+        RefreshToken string
+        ExpiresAt    time.Time
+    }
+    
+    func saveSession(db *sql.DB, userID, access, refresh string) error {
+        query := `
+            INSERT INTO sessions (user_id, access_token, refresh_token, expires_at)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (user_id) 
+            DO UPDATE SET 
+                access_token = $2,
+                refresh_token = $3,
+                expires_at = $4
+        `
+        
+        expiresAt := time.Now().Add(60 * time.Minute)
+        _, err := db.Exec(query, userID, access, refresh, expiresAt)
+        return err
+    }
+    
+    func loadSession(db *sql.DB, userID string) (*Session, error) {
+        var session Session
+        query := `
+            SELECT user_id, access_token, refresh_token, expires_at
+            FROM sessions
+            WHERE user_id = $1
+        `
+        
+        err := db.QueryRow(query, userID).Scan(
+            &session.UserID,
+            &session.AccessToken,
+            &session.RefreshToken,
+            &session.ExpiresAt,
+        )
+        
+        return &session, err
+    }
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+Never commit tokens to version control. Use `.gitignore` to exclude token files and always encrypt tokens when storing them in databases.
+</Warning>
+
+## Session management
+
+Here's a complete example of managing user sessions with token refresh:
+
+```go Session manager
+package main
+
+import (
+    "context"
+    "encoding/json"
+    "fmt"
+    "log"
+    "os"
+    "sync"
+    "time"
+    
+    linkvite "github.com/linkvite/go"
+)
+
+type SessionManager struct {
+    client       *linkvite.Client
+    tokenFile    string
+    mu           sync.RWMutex
+    refreshTimer *time.Timer
+}
+
+type TokenData struct {
+    AccessToken  string    `json:"access_token"`
+    RefreshToken string    `json:"refresh_token"`
+    SavedAt      time.Time `json:"saved_at"`
+}
+
+func NewSessionManager(tokenFile string) (*SessionManager, error) {
+    sm := &SessionManager{
+        tokenFile: tokenFile,
+    }
+    
+    // Try to load existing tokens
+    if err := sm.loadTokens(); err != nil {
+        return sm, fmt.Errorf("no existing session: %w", err)
+    }
+    
+    // Start automatic refresh
+    sm.startAutoRefresh()
+    
+    return sm, nil
+}
+
+func (sm *SessionManager) Login(ctx context.Context, identifier, password string) error {
+    result, err := linkvite.Login(ctx, identifier, password)
+    if err != nil {
+        return err
+    }
+    
+    client, err := linkvite.NewClientWithTokens(result.AccessToken, result.RefreshToken)
+    if err != nil {
+        return err
+    }
+    
+    sm.mu.Lock()
+    sm.client = client
+    sm.mu.Unlock()
+    
+    if err := sm.saveTokens(result.AccessToken, result.RefreshToken); err != nil {
+        return err
+    }
+    
+    sm.startAutoRefresh()
+    return nil
+}
+
+func (sm *SessionManager) loadTokens() error {
+    data, err := os.ReadFile(sm.tokenFile)
+    if err != nil {
+        return err
+    }
+    
+    var tokenData TokenData
+    if err := json.Unmarshal(data, &tokenData); err != nil {
+        return err
+    }
+    
+    client, err := linkvite.NewClientWithTokens(
+        tokenData.AccessToken,
+        tokenData.RefreshToken,
+    )
+    if err != nil {
+        return err
+    }
+    
+    sm.mu.Lock()
+    sm.client = client
+    sm.mu.Unlock()
+    
+    return nil
+}
+
+func (sm *SessionManager) saveTokens(access, refresh string) error {
+    tokenData := TokenData{
+        AccessToken:  access,
+        RefreshToken: refresh,
+        SavedAt:      time.Now(),
+    }
+    
+    data, err := json.MarshalIndent(tokenData, "", "  ")
+    if err != nil {
+        return err
+    }
+    
+    return os.WriteFile(sm.tokenFile, data, 0600)
+}
+
+func (sm *SessionManager) startAutoRefresh() {
+    if sm.refreshTimer != nil {
+        sm.refreshTimer.Stop()
+    }
+    
+    // Refresh every 45 minutes
+    sm.refreshTimer = time.AfterFunc(45*time.Minute, func() {
+        ctx := context.Background()
+        if err := sm.RefreshTokens(ctx); err != nil {
+            log.Printf("Auto-refresh failed: %v", err)
+        }
+        sm.startAutoRefresh()
+    })
+}
+
+func (sm *SessionManager) RefreshTokens(ctx context.Context) error {
+    sm.mu.Lock()
+    defer sm.mu.Unlock()
+    
+    if sm.client == nil {
+        return fmt.Errorf("no active session")
+    }
+    
+    if err := sm.client.RefreshAccessToken(ctx); err != nil {
+        return err
+    }
+    
+    // Save updated tokens
+    // Note: In a real implementation, you'd extract tokens from the client
+    log.Println("Tokens refreshed successfully")
+    return nil
+}
+
+func (sm *SessionManager) GetClient() *linkvite.Client {
+    sm.mu.RLock()
+    defer sm.mu.RUnlock()
+    return sm.client
+}
+
+func main() {
+    sm, err := NewSessionManager(".linkvite-session")
+    if err != nil {
+        // No existing session, need to login
+        sm = &SessionManager{tokenFile: ".linkvite-session"}
+        if err := sm.Login(context.Background(), "user@example.com", "password"); err != nil {
+            log.Fatal(err)
+        }
+    }
+    
+    client := sm.GetClient()
+    user, err := client.User.Get(context.Background())
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    fmt.Printf("Logged in as: %s\n", user.Name)
+}
+```
+
+## Error handling
+
+Handle token-related errors appropriately:
+
+```go Error handling
+user, err := client.User.Get(ctx)
+if err != nil {
+    if apiErr, ok := err.(*linkvite.Error); ok {
+        switch {
+        case apiErr.IsUnauthorized():
+            // Token expired or invalid
+            if refreshErr := client.RefreshAccessToken(ctx); refreshErr != nil {
+                log.Fatal("Session expired, please login again")
+            }
+            // Retry request
+            user, err = client.User.Get(ctx)
+            
+        case apiErr.IsForbidden():
+            log.Fatal("Insufficient permissions")
+            
+        default:
+            log.Fatalf("API error: %s", apiErr.Message)
+        }
+    }
+}
+```
+
+Common token errors:
+- `401 Unauthorized` - Expired or invalid access token
+- `403 Forbidden` - Valid token but insufficient permissions
+- Refresh failure - Invalid or expired refresh token (requires re-login)
+
+## Best practices
+
+<Steps>
+  <Step title="Always store refresh tokens">
+    Store both access and refresh tokens to enable automatic token refresh:
+    
+    ```go
+    // Save both tokens
+    saveTokens(result.AccessToken, result.RefreshToken)
+    ```
+  </Step>
+  
+  <Step title="Implement automatic refresh">
+    Refresh tokens proactively before they expire to avoid disrupting user experience.
+  </Step>
+  
+  <Step title="Handle refresh failures gracefully">
+    If token refresh fails, redirect users to login instead of showing cryptic errors:
+    
+    ```go
+    if err := client.RefreshAccessToken(ctx); err != nil {
+        // Clear stored tokens
+        clearTokens()
+        // Redirect to login
+        return redirectToLogin()
+    }
+    ```
+  </Step>
+  
+  <Step title="Secure token storage">
+    Encrypt tokens at rest and never log token values:
+    
+    ```go
+    // Good: Generic error
+    log.Println("Token refresh failed")
+    
+    // Bad: Exposes token
+    log.Printf("Failed with token: %s", token)
+    ```
+  </Step>
+  
+  <Step title="Use HTTPS only">
+    Always use HTTPS in production to protect tokens in transit. The default base URL uses HTTPS:
+    
+    ```go
+    const DefaultBaseURL = "https://api.linkvite.io"
+    ```
+  </Step>
+</Steps>
+
+## When to use access tokens
+
+Access tokens are the best choice when:
+
+- Building web applications with user sessions
+- Creating mobile applications
+- Implementing "remember me" functionality
+- You need user-specific authentication
+- You want to manage token expiration and refresh
+
+For server-side automation or long-lived integrations, consider using [API keys](/authentication/api-keys) instead.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="API keys" icon="key" href="/authentication/api-keys">
+    Learn about API key authentication for server-side apps
+  </Card>
+  <Card title="User service" icon="user" href="/api/user">
+    Explore user-related API operations
+  </Card>
+</CardGroup>

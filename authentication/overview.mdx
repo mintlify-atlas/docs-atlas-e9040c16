@@ -1,0 +1,256 @@
+---
+title: Authentication overview
+description: Learn about the three authentication methods supported by the Linkvite Go SDK
+---
+
+The Linkvite Go SDK supports three authentication methods to suit different use cases. You can authenticate using API keys, access tokens, or username/email and password credentials.
+
+## Authentication methods
+
+The SDK provides three ways to authenticate:
+
+1. **API keys** - Best for server-side applications and long-lived integrations
+2. **Access tokens** - Best for applications that manage user sessions with token refresh
+3. **Credentials** - Best for initial authentication to obtain tokens
+
+Each method creates a fully authenticated client ready to make API requests.
+
+## API key authentication
+
+API key authentication is the simplest method and recommended for most server-side applications. API keys are long-lived credentials that don't require token refresh.
+
+```go linkvite.go
+func NewClient(apiKey string, opts ...Option) (*Client, error)
+```
+
+<CodeGroup>
+```go Basic usage
+import linkvite "github.com/linkvite/go"
+
+client, err := linkvite.NewClient("link_your-api-key")
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+```go With options
+client, err := linkvite.NewClient("link_your-api-key",
+    linkvite.WithBaseURL("https://custom.api.url"),
+    linkvite.WithHTTPClient(customHTTPClient),
+    linkvite.WithUserAgent("my-app/1.0"),
+)
+```
+</CodeGroup>
+
+<Note>
+API keys must start with the prefix `link_`. The SDK validates this format when creating a client.
+</Note>
+
+### When to use API keys
+
+Use API key authentication when:
+- Building server-side applications
+- Creating background jobs or scheduled tasks
+- Developing CLI tools or scripts
+- You need a simple, long-lived authentication method
+
+## Access token authentication
+
+Access token authentication uses OAuth-style tokens with refresh capabilities. This method is ideal when you need to maintain user sessions or when you've already obtained tokens from a previous authentication.
+
+```go linkvite.go
+func NewClientWithTokens(accessToken, refreshToken string, opts ...Option) (*Client, error)
+```
+
+<CodeGroup>
+```go With tokens
+client, err := linkvite.NewClientWithTokens(
+    "your-access-token",
+    "your-refresh-token",
+)
+```
+
+```go Using options
+client, err := linkvite.NewClient("",
+    linkvite.WithTokens("access-token", "refresh-token"),
+)
+```
+
+```go Access token only
+client, err := linkvite.NewClient("",
+    linkvite.WithAccessToken("your-access-token"),
+)
+```
+</CodeGroup>
+
+<Info>
+Providing a refresh token enables automatic token refresh. Without a refresh token, you'll need to re-authenticate when the access token expires.
+</Info>
+
+### Token refresh
+
+When you have a refresh token, you can refresh the access token without re-authenticating:
+
+```go linkvite.go
+err := client.RefreshAccessToken(ctx)
+if err != nil {
+    log.Printf("Failed to refresh token: %v", err)
+}
+```
+
+The `RefreshAccessToken` method updates both the access token and refresh token stored in the client.
+
+### When to use access tokens
+
+Use access token authentication when:
+- Building web applications with user sessions
+- Implementing "remember me" functionality
+- You've already obtained tokens from a previous login
+- You need to manage token expiration and refresh
+
+## Credentials authentication
+
+Credentials authentication uses a username or email and password to obtain access tokens. This method is useful for initial authentication or when you need to log in a user.
+
+```go linkvite.go
+func NewClientWithCredentials(ctx context.Context, identifier, password string, opts ...Option) (*Client, error)
+```
+
+```go example/main.go
+client, err := linkvite.NewClientWithCredentials(
+    context.Background(),
+    "user@example.com",
+    "password",
+)
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+The `identifier` parameter accepts either a username or email address.
+
+### Login without creating a client
+
+If you need to obtain tokens without immediately creating a client, use the `Login` function:
+
+```go linkvite.go
+func Login(ctx context.Context, identifier, password string, opts ...Option) (*LoginResult, error)
+```
+
+```go Usage example
+result, err := linkvite.Login(
+    context.Background(),
+    "user@example.com",
+    "password",
+)
+if err != nil {
+    log.Fatal(err)
+}
+
+// result.AccessToken, result.RefreshToken, result.User
+fmt.Printf("Logged in as: %s\n", result.User.Name)
+
+// Create client later with the tokens
+client, err := linkvite.NewClientWithTokens(
+    result.AccessToken,
+    result.RefreshToken,
+)
+```
+
+The `LoginResult` contains:
+- `AccessToken` - The access token for API authentication
+- `RefreshToken` - The refresh token for obtaining new access tokens
+- `User` - Complete user information
+
+### When to use credentials
+
+Use credentials authentication when:
+- Implementing a login flow in your application
+- You need to authenticate a user for the first time
+- Building interactive applications that require user login
+- You want to obtain user information along with tokens
+
+## Authentication types
+
+The client tracks which authentication method is active through the `AuthType` field:
+
+```go linkvite.go
+type AuthType int
+
+const (
+    AuthTypeUnset AuthType = iota
+    AuthTypeAPIKey
+    AuthTypeAccessToken
+)
+```
+
+You cannot mix authentication methods on the same client. The SDK prevents setting both an API key and access token:
+
+```go Invalid usage
+client, err := linkvite.NewClient("link_your-api-key",
+    linkvite.WithAccessToken("token"), // Error: cannot mix auth methods
+)
+```
+
+## Configuration options
+
+All authentication methods support the same configuration options:
+
+<Steps>
+  <Step title="WithBaseURL">
+    Set a custom API base URL (defaults to `https://api.linkvite.io`):
+    
+    ```go
+    linkvite.WithBaseURL("https://custom.api.url")
+    ```
+  </Step>
+  
+  <Step title="WithHTTPClient">
+    Provide a custom HTTP client for advanced configuration:
+    
+    ```go
+    httpClient := &http.Client{
+        Timeout: 60 * time.Second,
+        Transport: customTransport,
+    }
+    linkvite.WithHTTPClient(httpClient)
+    ```
+  </Step>
+  
+  <Step title="WithUserAgent">
+    Set a custom User-Agent header:
+    
+    ```go
+    linkvite.WithUserAgent("my-app/1.0")
+    ```
+  </Step>
+</Steps>
+
+## Error handling
+
+All authentication methods return errors for invalid credentials or configuration:
+
+```go Error handling example
+client, err := linkvite.NewClient("invalid-key")
+if err != nil {
+    // Handle error: invalid API key format
+    log.Fatal(err)
+}
+```
+
+Common authentication errors:
+- Empty API key or token
+- Invalid API key format (must start with `link_`)
+- Mixing authentication methods
+- Missing required authentication credentials
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="API keys" icon="key" href="/authentication/api-keys">
+    Learn how to create, manage, and secure API keys
+  </Card>
+  <Card title="Access tokens" icon="ticket" href="/authentication/access-tokens">
+    Deep dive into token management and refresh flows
+  </Card>
+</CardGroup>

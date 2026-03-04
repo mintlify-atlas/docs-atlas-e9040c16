@@ -1,0 +1,398 @@
+---
+title: 'API Keys Service'
+description: 'Complete API reference for API key management operations'
+---
+
+The `APIKeysService` handles operations for creating and managing API keys for authentication.
+
+## Accessing the Service
+
+```go
+client := linkvite.NewClient("your-api-key")
+apiKeys := client.APIKeys
+```
+
+## List Operations
+
+### List
+
+Retrieves all API keys for the current user.
+
+```go
+func (s *APIKeysService) List(ctx context.Context) ([]*APIKey, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ResponseField name="keys" type="[]*APIKey">
+  Array of API keys (without the full key values)
+</ResponseField>
+
+**Example**
+
+```go
+keys, err := client.APIKeys.List(context.Background())
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("You have %d API keys:\n\n", len(keys))
+for _, key := range keys {
+    fmt.Printf("Name: %s\n", key.Name)
+    fmt.Printf("Prefix: %s****\n", key.Prefix)
+    fmt.Printf("Created: %s\n", key.CreatedAt.Format("Jan 2, 2006"))
+    
+    if key.LastUsedAt != nil {
+        fmt.Printf("Last used: %s\n", key.LastUsedAt.Format("Jan 2, 2006 15:04"))
+    } else {
+        fmt.Println("Last used: Never")
+    }
+    
+    if key.ExpiresAt != nil {
+        fmt.Printf("Expires: %s\n", key.ExpiresAt.Format("Jan 2, 2006"))
+    }
+    
+    if len(key.Scopes) > 0 {
+        fmt.Printf("Scopes: %v\n", key.Scopes)
+    }
+    
+    fmt.Println()
+}
+```
+
+## Create Operations
+
+### Create
+
+Creates a new API key.
+
+```go
+func (s *APIKeysService) Create(ctx context.Context, input *CreateAPIKeyInput) (*CreateAPIKeyResult, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="*CreateAPIKeyInput" required>
+  <Expandable title="CreateAPIKeyInput fields">
+    <ParamField path="Name" type="string" required>
+      Descriptive name for the API key
+    </ParamField>
+    <ParamField path="Scopes" type="[]string">
+      Optional array of permission scopes
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="result" type="*CreateAPIKeyResult">
+  <Expandable title="fields">
+    <ResponseField name="Key" type="string">
+      The full API key (only shown once)
+    </ResponseField>
+    <ResponseField name="ID" type="string">
+      The API key ID
+    </ResponseField>
+    <ResponseField name="Name" type="string">
+      The API key name
+    </ResponseField>
+    <ResponseField name="Prefix" type="string">
+      The key prefix for identification
+    </ResponseField>
+    <ResponseField name="CreatedAt" type="time.Time">
+      Creation timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example**
+
+```go
+result, err := client.APIKeys.Create(context.Background(), &linkvite.CreateAPIKeyInput{
+    Name:   "Production API Key",
+    Scopes: []string{"bookmarks:read", "bookmarks:write", "collections:read"},
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println("API Key Created!")
+fmt.Println("\nIMPORTANT: Save this key now. You won't be able to see it again.")
+fmt.Printf("\nKey: %s\n", result.Key)
+fmt.Printf("Name: %s\n", result.Name)
+fmt.Printf("ID: %s\n", result.ID)
+```
+
+<Warning>
+  The full API key is only returned once during creation. Make sure to save it securely. If you lose it, you'll need to create a new key.
+</Warning>
+
+## Update Operations
+
+### Edit
+
+Updates an API key's name or scopes.
+
+```go
+func (s *APIKeysService) Edit(ctx context.Context, id string, input *EditAPIKeyInput) (*APIKey, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  API key ID
+</ParamField>
+
+<ParamField path="input" type="*EditAPIKeyInput" required>
+  <Expandable title="EditAPIKeyInput fields">
+    <ParamField path="Name" type="string">
+      New name for the API key
+    </ParamField>
+    <ParamField path="Scopes" type="[]string">
+      New permission scopes
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="key" type="*APIKey">
+  The updated API key
+</ResponseField>
+
+**Example**
+
+```go
+key, err := client.APIKeys.Edit(context.Background(), "key-123", &linkvite.EditAPIKeyInput{
+    Name:   "Updated Key Name",
+    Scopes: []string{"bookmarks:read", "collections:read"},
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("API key updated: %s\n", key.Name)
+fmt.Printf("New scopes: %v\n", key.Scopes)
+```
+
+## Complete API Key Management Example
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "time"
+    "github.com/yourusername/linkvite-go"
+)
+
+func main() {
+    client := linkvite.NewClient("your-admin-api-key")
+    ctx := context.Background()
+
+    // Create a new API key
+    fmt.Println("Creating new API key...")
+    result, err := client.APIKeys.Create(ctx, &linkvite.CreateAPIKeyInput{
+        Name: "CI/CD Pipeline Key",
+        Scopes: []string{
+            "bookmarks:read",
+            "bookmarks:write",
+            "collections:read",
+        },
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Println("\n=== NEW API KEY ===")
+    fmt.Printf("Key: %s\n", result.Key)
+    fmt.Printf("Save this key securely!\n\n")
+
+    // List all API keys
+    keys, err := client.APIKeys.List(ctx)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("Total API keys: %d\n\n", len(keys))
+
+    // Display usage statistics
+    for _, key := range keys {
+        fmt.Printf("Name: %s\n", key.Name)
+        fmt.Printf("Prefix: %s****\n", key.Prefix)
+        
+        if key.LastUsedAt != nil {
+            timeSince := time.Since(*key.LastUsedAt)
+            if timeSince < 24*time.Hour {
+                fmt.Printf("Status: Active (used %.0f hours ago)\n", timeSince.Hours())
+            } else {
+                fmt.Printf("Status: Inactive (used %.0f days ago)\n", timeSince.Hours()/24)
+            }
+        } else {
+            fmt.Println("Status: Never used")
+        }
+        
+        fmt.Println()
+    }
+
+    // Update an API key
+    if len(keys) > 0 {
+        firstKey := keys[0]
+        fmt.Printf("Updating key: %s\n", firstKey.Name)
+        
+        updated, err := client.APIKeys.Edit(ctx, firstKey.ID, &linkvite.EditAPIKeyInput{
+            Name: firstKey.Name + " (Updated)",
+        })
+        if err != nil {
+            log.Printf("Failed to update key: %v", err)
+        } else {
+            fmt.Printf("Key updated to: %s\n", updated.Name)
+        }
+    }
+}
+```
+
+## Security Best Practices
+
+### Scoped API Keys
+
+Create API keys with minimal required permissions:
+
+```go
+// Read-only key for analytics
+analyticsKey, err := client.APIKeys.Create(ctx, &linkvite.CreateAPIKeyInput{
+    Name: "Analytics Dashboard",
+    Scopes: []string{
+        "bookmarks:read",
+        "collections:read",
+        "user:read",
+    },
+})
+
+// Write-only key for automation
+automationKey, err := client.APIKeys.Create(ctx, &linkvite.CreateAPIKeyInput{
+    Name: "Bookmark Automation",
+    Scopes: []string{
+        "bookmarks:write",
+    },
+})
+
+// Full access key for admin operations
+adminKey, err := client.APIKeys.Create(ctx, &linkvite.CreateAPIKeyInput{
+    Name: "Admin Operations",
+    Scopes: []string{
+        "bookmarks:read",
+        "bookmarks:write",
+        "collections:read",
+        "collections:write",
+        "user:read",
+        "user:write",
+    },
+})
+```
+
+### Key Rotation
+
+Regularly rotate your API keys:
+
+```go
+// Find old keys that haven't been used recently
+keys, err := client.APIKeys.List(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+
+for _, key := range keys {
+    if key.LastUsedAt != nil {
+        daysSinceUse := time.Since(*key.LastUsedAt).Hours() / 24
+        
+        if daysSinceUse > 90 {
+            fmt.Printf("Warning: Key '%s' hasn't been used in %.0f days\n", 
+                key.Name, daysSinceUse)
+            fmt.Println("Consider deleting this key and creating a new one if needed.")
+        }
+    }
+}
+```
+
+### Monitoring Key Usage
+
+```go
+// Monitor API key usage
+keys, err := client.APIKeys.List(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println("=== API Key Usage Report ===")
+for _, key := range keys {
+    fmt.Printf("\nKey: %s\n", key.Name)
+    fmt.Printf("Prefix: %s****\n", key.Prefix)
+    fmt.Printf("Created: %s\n", key.CreatedAt.Format("Jan 2, 2006"))
+    
+    if key.LastUsedAt != nil {
+        fmt.Printf("Last used: %s\n", key.LastUsedAt.Format("Jan 2, 2006 15:04"))
+        
+        daysSinceCreation := time.Since(key.CreatedAt).Hours() / 24
+        daysSinceUse := time.Since(*key.LastUsedAt).Hours() / 24
+        usageRate := (daysSinceCreation - daysSinceUse) / daysSinceCreation * 100
+        
+        fmt.Printf("Usage rate: %.1f%%\n", usageRate)
+    } else {
+        fmt.Println("Status: Unused")
+    }
+}
+```
+
+## Storing API Keys Securely
+
+```go
+import (
+    "os"
+    "github.com/joho/godotenv"
+)
+
+func main() {
+    // Load API key from environment variable
+    godotenv.Load()
+    apiKey := os.Getenv("LINKVITE_API_KEY")
+    
+    if apiKey == "" {
+        log.Fatal("LINKVITE_API_KEY environment variable not set")
+    }
+    
+    client := linkvite.NewClient(apiKey)
+    
+    // Use the client...
+}
+```
+
+<Info>
+  Never hardcode API keys in your source code. Use environment variables, secret management services, or configuration files that are excluded from version control.
+</Info>
+
+## Error Handling
+
+All methods return an error. Always check for errors:
+
+```go
+keys, err := client.APIKeys.List(context.Background())
+if err != nil {
+    log.Printf("Failed to list API keys: %v", err)
+    return
+}
+
+for _, key := range keys {
+    fmt.Println(key.Name)
+}
+```
+
+## Type Reference
+
+For detailed information about types used in this service, see:
+
+- [API Key Types](/api/types#api-key)

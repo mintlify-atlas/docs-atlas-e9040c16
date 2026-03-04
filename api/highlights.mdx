@@ -1,0 +1,347 @@
+---
+title: 'Highlights Service'
+description: 'Complete API reference for text highlight operations'
+---
+
+The `HighlightsService` handles operations for creating and managing text highlights within bookmarks.
+
+## Accessing the Service
+
+```go
+client := linkvite.NewClient("your-api-key")
+highlights := client.Highlights
+```
+
+## Highlight Colors
+
+Linkvite provides 5 predefined highlight colors:
+
+```go
+const (
+    HighlightColor1 HighlightColor = "lv-highlighter-1" // Pink
+    HighlightColor2 HighlightColor = "lv-highlighter-2" // Blue
+    HighlightColor3 HighlightColor = "lv-highlighter-3" // Green
+    HighlightColor4 HighlightColor = "lv-highlighter-4" // Purple
+    HighlightColor5 HighlightColor = "lv-highlighter-5" // Orange
+)
+```
+
+## List Operations
+
+### List
+
+Retrieves all highlights for a bookmark.
+
+```go
+func (s *HighlightsService) List(ctx context.Context, bookmarkID string) (*ListHighlightsResult, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="bookmarkID" type="string" required>
+  ID of the bookmark to get highlights for
+</ParamField>
+
+<ResponseField name="result" type="*ListHighlightsResult">
+  <Expandable title="fields">
+    <ResponseField name="Highlights" type="[]*Highlight">
+      Array of highlights
+    </ResponseField>
+    <ResponseField name="Bookmark" type="string">
+      Bookmark ID
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example**
+
+```go
+result, err := client.Highlights.List(context.Background(), "bookmark-123")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Highlights for bookmark %s: %d\n", result.Bookmark, len(result.Highlights))
+for _, h := range result.Highlights {
+    fmt.Printf("[%s] %s\n", h.Color, h.Exact)
+    if h.Note != "" {
+        fmt.Printf("  Note: %s\n", h.Note)
+    }
+}
+```
+
+## Create Operations
+
+### Create
+
+Creates a new highlight.
+
+```go
+func (s *HighlightsService) Create(ctx context.Context, input *CreateHighlightInput) (*CreateHighlightResult, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="*CreateHighlightInput" required>
+  <Expandable title="CreateHighlightInput fields">
+    <ParamField path="ID" type="string" required>
+      Unique ID for the highlight (client-generated)
+    </ParamField>
+    <ParamField path="BookmarkID" type="string" required>
+      ID of the bookmark to highlight
+    </ParamField>
+    <ParamField path="Color" type="HighlightColor" required>
+      Highlight color (use one of the predefined colors)
+    </ParamField>
+    <ParamField path="Start" type="*int" required>
+      Start position of the highlight in the text
+    </ParamField>
+    <ParamField path="End" type="*int" required>
+      End position of the highlight in the text
+    </ParamField>
+    <ParamField path="Exact" type="string" required>
+      The exact text being highlighted
+    </ParamField>
+    <ParamField path="Note" type="string">
+      Optional note attached to the highlight
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="result" type="*CreateHighlightResult">
+  <Expandable title="fields">
+    <ResponseField name="Highlight" type="*Highlighted">
+      The created highlight in annotation format
+    </ResponseField>
+    <ResponseField name="PreviousID" type="string">
+      ID of the previous highlight if this replaces one
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example**
+
+```go
+import "github.com/google/uuid"
+
+start := 42
+end := 89
+
+result, err := client.Highlights.Create(context.Background(), &linkvite.CreateHighlightInput{
+    ID:         uuid.New().String(),
+    BookmarkID: "bookmark-123",
+    Color:      linkvite.HighlightColor1,
+    Start:      &start,
+    End:        &end,
+    Exact:      "This is the highlighted text from the article",
+    Note:       "Important point to remember",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Highlight created: %s\n", result.Highlight.ID)
+```
+
+## Update Operations
+
+### Edit
+
+Updates a highlight's note or color.
+
+```go
+func (s *HighlightsService) Edit(ctx context.Context, id string, input *EditHighlightInput) (*Highlight, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Highlight ID
+</ParamField>
+
+<ParamField path="input" type="*EditHighlightInput" required>
+  <Expandable title="EditHighlightInput fields">
+    <ParamField path="Note" type="string">
+      Updated note
+    </ParamField>
+    <ParamField path="Color" type="HighlightColor">
+      Updated color
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="highlight" type="*Highlight">
+  The updated highlight
+</ResponseField>
+
+**Example**
+
+```go
+highlight, err := client.Highlights.Edit(context.Background(), "highlight-456", &linkvite.EditHighlightInput{
+    Note:  "Updated note with more details",
+    Color: linkvite.HighlightColor3,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Highlight updated: %s\n", highlight.ID)
+```
+
+## Delete Operations
+
+### Delete
+
+Deletes a highlight.
+
+```go
+func (s *HighlightsService) Delete(ctx context.Context, id string) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Highlight ID to delete
+</ParamField>
+
+**Example**
+
+```go
+err := client.Highlights.Delete(context.Background(), "highlight-456")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Highlight deleted")
+```
+
+## Complete Highlights Example
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "github.com/google/uuid"
+    "github.com/yourusername/linkvite-go"
+)
+
+func main() {
+    client := linkvite.NewClient("your-api-key")
+    ctx := context.Background()
+    bookmarkID := "bookmark-123"
+
+    // Get existing highlights
+    result, err := client.Highlights.List(ctx, bookmarkID)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("Existing highlights: %d\n\n", len(result.Highlights))
+
+    // Create a new highlight
+    start := 100
+    end := 150
+
+    createResult, err := client.Highlights.Create(ctx, &linkvite.CreateHighlightInput{
+        ID:         uuid.New().String(),
+        BookmarkID: bookmarkID,
+        Color:      linkvite.HighlightColor2,
+        Start:      &start,
+        End:        &end,
+        Exact:      "The quick brown fox jumps over the lazy dog",
+        Note:       "Classic pangram example",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    highlightID := createResult.Highlight.ID
+    fmt.Printf("Created highlight: %s\n", highlightID)
+
+    // Update the highlight color
+    updated, err := client.Highlights.Edit(ctx, highlightID, &linkvite.EditHighlightInput{
+        Color: linkvite.HighlightColor5,
+        Note:  "Updated to orange color",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("Updated highlight color to: %s\n", updated.Color)
+
+    // List all highlights again
+    result, err = client.Highlights.List(ctx, bookmarkID)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("\nTotal highlights: %d\n", len(result.Highlights))
+    for i, h := range result.Highlights {
+        fmt.Printf("%d. [%s] %s\n", i+1, h.Color, h.Exact)
+        if h.Note != "" {
+            fmt.Printf("   Note: %s\n", h.Note)
+        }
+    }
+}
+```
+
+## Working with Text Positions
+
+When creating highlights, you need to specify the exact position of the text:
+
+```go
+// Example text: "The quick brown fox jumps over the lazy dog"
+// To highlight "brown fox":
+// Start position: 10 (index of 'b' in 'brown')
+// End position: 19 (index after 'x' in 'fox')
+
+start := 10
+end := 19
+exactText := "brown fox"
+
+highlight, err := client.Highlights.Create(ctx, &linkvite.CreateHighlightInput{
+    ID:         uuid.New().String(),
+    BookmarkID: bookmarkID,
+    Color:      linkvite.HighlightColor1,
+    Start:      &start,
+    End:        &end,
+    Exact:      exactText,
+})
+```
+
+<Note>
+  The `Start` and `End` positions are 0-indexed character positions in the text content. The `Exact` field should contain the exact text between these positions.
+</Note>
+
+## Error Handling
+
+All methods return an error. Always check for errors:
+
+```go
+result, err := client.Highlights.List(context.Background(), "bookmark-123")
+if err != nil {
+    log.Printf("Failed to get highlights: %v", err)
+    return
+}
+
+for _, h := range result.Highlights {
+    fmt.Println(h.Exact)
+}
+```
+
+## Type Reference
+
+For detailed information about types used in this service, see:
+
+- [Highlight Types](/api/types#highlight)
+- [Highlight Colors](/api/types#highlight-color)

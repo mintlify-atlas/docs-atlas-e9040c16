@@ -1,0 +1,516 @@
+---
+title: 'RSS Feed Subscriptions'
+description: 'Subscribe to RSS feeds and automatically bookmark new content'
+icon: 'rss'
+---
+
+## Overview
+
+RSS feeds let you subscribe to blogs, news sites, and content sources. Linkvite automatically fetches new items and can create bookmarks from feed updates, keeping you connected to your favorite sources.
+
+## Understanding RSS Feeds
+
+Each RSS feed subscription includes:
+
+- **URL**: The RSS feed endpoint
+- **Title**: Name of the feed (auto-detected or custom)
+- **Description**: Feed information
+- **Collection**: Optional collection for auto-created bookmarks
+- **Last Fetch**: Timestamp of the last feed update check
+- **Item Count**: Number of available feed items
+
+## Creating Feed Subscriptions
+
+### Basic Subscription
+
+Subscribe to an RSS feed:
+
+```go
+feed, err := client.RSSFeeds.Create(ctx, &linkvite.CreateRSSFeedInput{
+    URL: "https://blog.golang.org/feed.atom",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Subscribed to: %s\n", feed.Title)
+fmt.Printf("Feed ID: %s\n", feed.ID)
+```
+
+<Info>
+Linkvite automatically fetches the feed title and description from the RSS feed metadata.
+</Info>
+
+### Subscribe with Auto-Bookmark Collection
+
+Automatically save new feed items as bookmarks in a specific collection:
+
+```go
+feed, err := client.RSSFeeds.Create(ctx, &linkvite.CreateRSSFeedInput{
+    URL:          "https://example.com/rss",
+    CollectionID: "tech-news-collection-id",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Feed subscribed with auto-bookmark to collection: %s\n", feed.CollectionID)
+```
+
+### Subscribe to Multiple Feeds
+
+Add several feeds at once:
+
+```go
+feeds := []struct {
+    URL          string
+    CollectionID string
+}{
+    {"https://blog.golang.org/feed.atom", "golang-collection"},
+    {"https://kubernetes.io/feed.xml", "devops-collection"},
+    {"https://react.dev/rss.xml", "frontend-collection"},
+}
+
+for _, f := range feeds {
+    feed, err := client.RSSFeeds.Create(ctx, &linkvite.CreateRSSFeedInput{
+        URL:          f.URL,
+        CollectionID: f.CollectionID,
+    })
+    if err != nil {
+        log.Printf("Failed to subscribe to %s: %v", f.URL, err)
+        continue
+    }
+    fmt.Printf("Subscribed: %s\n", feed.Title)
+}
+```
+
+## Listing RSS Feeds
+
+### Get All Subscriptions
+
+Retrieve your RSS feed subscriptions:
+
+```go
+feeds, err := client.RSSFeeds.List(ctx, &linkvite.ListOptions{
+    Limit: 50,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+for _, feed := range feeds {
+    fmt.Printf("\n%s\n", feed.Title)
+    fmt.Printf("URL: %s\n", feed.URL)
+    fmt.Printf("Items: %d\n", feed.ItemCount)
+    if feed.CollectionName != "" {
+        fmt.Printf("Auto-bookmarks to: %s\n", feed.CollectionName)
+    }
+    if feed.LastFetchAt != nil {
+        fmt.Printf("Last checked: %s\n", feed.LastFetchAt.Format(time.RFC822))
+    }
+}
+```
+
+### Search Feeds
+
+Find specific feeds by title:
+
+```go
+feeds, err := client.RSSFeeds.List(ctx, &linkvite.ListOptions{
+    Query: "golang",
+})
+```
+
+### Sort Feeds
+
+Order feeds by different criteria:
+
+```go
+// Most recently updated
+feeds, err := client.RSSFeeds.List(ctx, &linkvite.ListOptions{
+    Sort: "updated_at",
+})
+
+// By title
+feeds, err := client.RSSFeeds.List(ctx, &linkvite.ListOptions{
+    Sort: "title",
+})
+```
+
+## Viewing Feed Items
+
+### Get Latest Items
+
+Retrieve items from a feed:
+
+```go
+items, err := client.RSSFeeds.GetItems(ctx, "feed-id")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Found %d items\n\n", len(items))
+
+for _, item := range items {
+    fmt.Printf("Title: %s\n", item.Title)
+    fmt.Printf("Link: %s\n", item.Link)
+    fmt.Printf("Author: %s\n", item.Author)
+    fmt.Printf("Published: %s\n", item.Published)
+    if item.Description != "" {
+        fmt.Printf("Description: %s\n", item.Description)
+    }
+    fmt.Println()
+}
+```
+
+### Create Bookmarks from Feed Items
+
+Manually bookmark interesting feed items:
+
+```go
+items, err := client.RSSFeeds.GetItems(ctx, "feed-id")
+if err != nil {
+    log.Fatal(err)
+}
+
+for _, item := range items {
+    // Filter items based on criteria
+    if strings.Contains(strings.ToLower(item.Title), "golang") {
+        bookmark, err := client.Bookmarks.Create(ctx, &linkvite.CreateBookmarkInput{
+            URL:         item.Link,
+            Title:       item.Title,
+            Description: item.Description,
+            Collection:  "golang-articles",
+            Tags:        "golang,rss,article",
+        })
+        if err != nil {
+            log.Printf("Failed to bookmark %s: %v", item.Link, err)
+            continue
+        }
+        fmt.Printf("Bookmarked: %s\n", bookmark.Title)
+    }
+}
+```
+
+## Editing RSS Feeds
+
+### Update Feed Title
+
+Customize the feed's display name:
+
+```go
+feed, err := client.RSSFeeds.Edit(ctx, "feed-id", &linkvite.EditRSSFeedInput{
+    Title: "Go Blog (Official)",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Feed renamed to: %s\n", feed.Title)
+```
+
+### Change Auto-Bookmark Collection
+
+Update where new items are automatically bookmarked:
+
+```go
+newCollection := "different-collection-id"
+
+feed, err := client.RSSFeeds.Edit(ctx, "feed-id", &linkvite.EditRSSFeedInput{
+    CollectionID: &newCollection,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println("Auto-bookmark collection updated")
+```
+
+### Disable Auto-Bookmarking
+
+Remove automatic bookmark creation:
+
+```go
+var noCollection *string = nil
+
+feed, err := client.RSSFeeds.Edit(ctx, "feed-id", &linkvite.EditRSSFeedInput{
+    CollectionID: noCollection,
+})
+```
+
+<Note>
+Setting `CollectionID` to `nil` disables automatic bookmarking. You can still manually bookmark feed items.
+</Note>
+
+## Deleting RSS Feeds
+
+### Batch Delete Feeds
+
+Remove multiple feed subscriptions at once:
+
+```go
+err := client.RSSFeeds.BatchDelete(ctx, &linkvite.BatchDeleteRSSFeedsInput{
+    Feeds: []string{"feed-1", "feed-2", "feed-3"},
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println("Feeds unsubscribed")
+```
+
+### Unsubscribe from Inactive Feeds
+
+Find and remove feeds that haven't been updated recently:
+
+```go
+feeds, err := client.RSSFeeds.List(ctx, &linkvite.ListOptions{
+    Limit: 100,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+inactiveFeeds := make([]string, 0)
+threshold := time.Now().AddDate(0, -3, 0) // 3 months ago
+
+for _, feed := range feeds {
+    if feed.LastFetchAt != nil && feed.LastFetchAt.Before(threshold) {
+        inactiveFeeds = append(inactiveFeeds, feed.ID)
+    }
+}
+
+if len(inactiveFeeds) > 0 {
+    err = client.RSSFeeds.BatchDelete(ctx, &linkvite.BatchDeleteRSSFeedsInput{
+        Feeds: inactiveFeeds,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("Removed %d inactive feeds\n", len(inactiveFeeds))
+}
+```
+
+## Complete Workflow Example
+
+Here's a complete workflow for managing RSS feeds and bookmarks:
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "strings"
+    "time"
+    "github.com/yourusername/linkvite-go"
+)
+
+func main() {
+    ctx := context.Background()
+    client := linkvite.NewClient("your-api-key")
+
+    // Create collection for tech news
+    collection, err := client.Collections.Create(ctx, &linkvite.CreateCollectionInput{
+        Name:        "Tech News",
+        Description: "Automatically bookmarked from RSS feeds",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Subscribe to feeds with auto-bookmark
+    feedURLs := []string{
+        "https://blog.golang.org/feed.atom",
+        "https://kubernetes.io/feed.xml",
+        "https://reactjs.org/feed.xml",
+    }
+
+    feedIDs := make([]string, 0)
+    for _, url := range feedURLs {
+        feed, err := client.RSSFeeds.Create(ctx, &linkvite.CreateRSSFeedInput{
+            URL:          url,
+            CollectionID: collection.ID,
+        })
+        if err != nil {
+            log.Printf("Failed to subscribe to %s: %v", url, err)
+            continue
+        }
+        feedIDs = append(feedIDs, feed.ID)
+        fmt.Printf("Subscribed: %s\n", feed.Title)
+    }
+
+    // Wait a moment for feeds to be fetched
+    time.Sleep(2 * time.Second)
+
+    // Review new items from each feed
+    for _, feedID := range feedIDs {
+        items, err := client.RSSFeeds.GetItems(ctx, feedID)
+        if err != nil {
+            log.Printf("Failed to get items: %v", err)
+            continue
+        }
+
+        fmt.Printf("\nReviewing %d items from feed %s\n", len(items), feedID)
+
+        // Manually bookmark items matching criteria
+        for _, item := range items {
+            // Example: bookmark items about Go or Kubernetes
+            keywords := []string{"go", "golang", "kubernetes", "k8s"}
+            titleLower := strings.ToLower(item.Title)
+            
+            matchFound := false
+            for _, keyword := range keywords {
+                if strings.Contains(titleLower, keyword) {
+                    matchFound = true
+                    break
+                }
+            }
+
+            if matchFound {
+                // Check if bookmark exists
+                exists, err := client.Bookmarks.Exists(ctx, &linkvite.BookmarkExistsInput{
+                    URL:        item.Link,
+                    Collection: collection.ID,
+                })
+                if err != nil {
+                    log.Printf("Error checking bookmark: %v", err)
+                    continue
+                }
+
+                if !exists.Exists {
+                    _, err = client.Bookmarks.Create(ctx, &linkvite.CreateBookmarkInput{
+                        URL:         item.Link,
+                        Title:       item.Title,
+                        Description: item.Description,
+                        Collection:  collection.ID,
+                        Tags:        "rss,tech,auto-saved",
+                    })
+                    if err != nil {
+                        log.Printf("Failed to bookmark: %v", err)
+                        continue
+                    }
+                    fmt.Printf("  ✓ Bookmarked: %s\n", item.Title)
+                }
+            }
+        }
+    }
+
+    // List all feeds with stats
+    feeds, err := client.RSSFeeds.List(ctx, &linkvite.ListOptions{
+        Limit: 50,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("\nSubscribed Feeds (%d):\n", len(feeds))
+    for _, feed := range feeds {
+        fmt.Printf("- %s (%d items)\n", feed.Title, feed.ItemCount)
+        if feed.LastFetchAt != nil {
+            fmt.Printf("  Last updated: %s\n", feed.LastFetchAt.Format("Jan 2, 2006 15:04"))
+        }
+    }
+
+    // Check bookmarks in collection
+    bookmarks, err := client.Bookmarks.ListByCollection(ctx, collection.ID, &linkvite.ListOptions{
+        Limit: 100,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("\nTotal bookmarks in collection: %d\n", len(bookmarks.Bookmarks))
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Feed Management">
+    - Regularly review and clean up inactive feeds
+    - Organize feeds into collections by topic
+    - Use descriptive custom titles for feeds
+    - Monitor feed fetch times to detect broken feeds
+  </Accordion>
+
+  <Accordion title="Auto-Bookmark Strategy">
+    - Create separate collections for different feed categories
+    - Set up filters to bookmark only relevant items
+    - Review auto-bookmarked items periodically
+    - Add tags to auto-bookmarked items for organization
+  </Accordion>
+
+  <Accordion title="Performance Tips">
+    - Limit the number of active feeds to avoid clutter
+    - Use batch operations when managing multiple feeds
+    - Check for duplicates before creating bookmarks from feeds
+    - Archive old feed items to keep collections manageable
+  </Accordion>
+
+  <Accordion title="Content Discovery">
+    - Subscribe to high-quality, curated feeds
+    - Combine feeds with manual bookmarking for comprehensive coverage
+    - Use search to find specific topics across all feeds
+    - Set reminders for important feed items
+  </Accordion>
+</AccordionGroup>
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Tech News Aggregation" icon="newspaper">
+    Subscribe to multiple tech blogs and automatically bookmark articles to a news collection for daily reading.
+  </Card>
+  
+  <Card title="Research Monitoring" icon="microscope">
+    Track academic journals and research blogs to stay updated on new publications in your field.
+  </Card>
+  
+  <Card title="Competitor Analysis" icon="chart-line">
+    Monitor competitor blogs and news feeds to track their announcements and content strategy.
+  </Card>
+  
+  <Card title="Content Curation" icon="filter">
+    Aggregate content from various sources and selectively bookmark items for sharing or newsletter creation.
+  </Card>
+</CardGroup>
+
+## Common RSS Feed URLs
+
+Here are some popular RSS feed examples:
+
+```go
+popularFeeds := map[string]string{
+    "Go Blog":           "https://blog.golang.org/feed.atom",
+    "Kubernetes Blog":   "https://kubernetes.io/feed.xml",
+    "GitHub Blog":       "https://github.blog/feed/",
+    "Dev.to":            "https://dev.to/feed",
+    "Hacker News":       "https://news.ycombinator.com/rss",
+    "React Blog":        "https://react.dev/rss.xml",
+    "Docker Blog":       "https://www.docker.com/blog/feed/",
+    "AWS News":          "https://aws.amazon.com/blogs/aws/feed/",
+}
+```
+
+<Tip>
+Many websites include RSS feed links in their HTML. Look for `<link rel="alternate" type="application/rss+xml">` in the page source.
+</Tip>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Bookmarks Guide" icon="bookmark" href="/guides/bookmarks">
+    Learn about creating and managing bookmarks
+  </Card>
+  <Card title="Collections Guide" icon="folder" href="/guides/collections">
+    Organize bookmarks into collections
+  </Card>
+  <Card title="RSS Feeds API" icon="rss" href="/api/rss-feeds">
+    Complete API reference for RSS feeds
+  </Card>
+  <Card title="Tags Guide" icon="tag" href="/guides/bookmarks#organizing-with-tags">
+    Tag organization strategies
+  </Card>
+</CardGroup>

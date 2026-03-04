@@ -1,0 +1,531 @@
+---
+title: 'Setting Reminders'
+description: 'Create reminders for bookmarks to revisit content at the right time'
+icon: 'bell'
+---
+
+## Overview
+
+Reminders help you revisit bookmarks at specific times. Set deadlines for reading articles, schedule follow-ups, or create recurring review cycles. You can manage individual reminders or perform batch operations for efficiency.
+
+## Understanding Reminders
+
+Each reminder consists of:
+
+- **Bookmark**: The bookmark you want to be reminded about
+- **Remind At**: Date and time for the reminder
+- **Note**: Optional context about why you set the reminder
+- **Completed**: Status flag for tracking completion
+
+## Creating Reminders
+
+### Basic Reminder
+
+Create a simple reminder for a bookmark:
+
+```go
+remindAt := time.Now().Add(24 * time.Hour)
+
+reminder, err := client.Reminders.Create(ctx, &linkvite.CreateReminderInput{
+    BookmarkID: "bookmark-id",
+    RemindAt:   remindAt,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Reminder created: %s\n", reminder.ID)
+fmt.Printf("Will remind at: %s\n", reminder.RemindAt.Format(time.RFC1123))
+```
+
+### Reminder with Note
+
+Add context to explain why you're setting the reminder:
+
+```go
+remindAt := time.Date(2024, 6, 15, 9, 0, 0, 0, time.UTC)
+
+reminder, err := client.Reminders.Create(ctx, &linkvite.CreateReminderInput{
+    BookmarkID: "bookmark-id",
+    RemindAt:   remindAt,
+    Note:       "Review before team meeting on Friday",
+})
+```
+
+### Multiple Reminders for Different Bookmarks
+
+Set reminders for a reading list:
+
+```go
+readingList := []struct {
+    BookmarkID string
+    Days       int
+    Note       string
+}{
+    {"article-1", 1, "Read tomorrow morning"},
+    {"article-2", 3, "Review by end of week"},
+    {"article-3", 7, "Read next week"},
+}
+
+for _, item := range readingList {
+    remindAt := time.Now().Add(time.Duration(item.Days) * 24 * time.Hour)
+    
+    _, err := client.Reminders.Create(ctx, &linkvite.CreateReminderInput{
+        BookmarkID: item.BookmarkID,
+        RemindAt:   remindAt,
+        Note:       item.Note,
+    })
+    if err != nil {
+        log.Printf("Failed to create reminder for %s: %v", item.BookmarkID, err)
+    }
+}
+```
+
+### Recurring Reminders Pattern
+
+Create a pattern for regular review:
+
+```go
+// Review an important bookmark weekly
+bookmarkID := "important-doc-id"
+weeks := 4
+
+for i := 1; i <= weeks; i++ {
+    remindAt := time.Now().Add(time.Duration(i*7) * 24 * time.Hour)
+    
+    _, err := client.Reminders.Create(ctx, &linkvite.CreateReminderInput{
+        BookmarkID: bookmarkID,
+        RemindAt:   remindAt,
+        Note:       fmt.Sprintf("Weekly review #%d", i),
+    })
+    if err != nil {
+        log.Printf("Failed to create week %d reminder: %v", i, err)
+    }
+}
+```
+
+## Listing Reminders
+
+### Get All Reminders
+
+Retrieve your reminders with pagination:
+
+```go
+result, err := client.Reminders.List(ctx, &linkvite.ListOptions{
+    Page:  1,
+    Limit: 20,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+for _, reminder := range result.Reminders {
+    fmt.Printf("\n%s\n", reminder.BookmarkTitle)
+    fmt.Printf("Remind at: %s\n", reminder.RemindAt.Format("2006-01-02 15:04"))
+    if reminder.Note != "" {
+        fmt.Printf("Note: %s\n", reminder.Note)
+    }
+    fmt.Printf("Completed: %v\n", reminder.Completed)
+}
+
+fmt.Printf("\nTotal: %d reminders\n", result.Pagination.Total)
+```
+
+### Filter by Status
+
+Get only active or completed reminders:
+
+```go
+// Active reminders only
+result, err := client.Reminders.List(ctx, &linkvite.ListOptions{
+    Status: "active",
+})
+
+// Completed reminders only
+result, err := client.Reminders.List(ctx, &linkvite.ListOptions{
+    Status: "completed",
+})
+```
+
+### Sort by Date
+
+List reminders in chronological order:
+
+```go
+result, err := client.Reminders.List(ctx, &linkvite.ListOptions{
+    Sort:  "remind_at",
+    Limit: 50,
+})
+```
+
+### Get Single Reminder
+
+Retrieve details for a specific reminder:
+
+```go
+reminder, err := client.Reminders.Get(ctx, "reminder-id")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Bookmark: %s\n", reminder.BookmarkTitle)
+fmt.Printf("URL: %s\n", reminder.BookmarkURL)
+fmt.Printf("Remind at: %s\n", reminder.RemindAt)
+fmt.Printf("Note: %s\n", reminder.Note)
+```
+
+## Editing Reminders
+
+### Update Reminder Time
+
+Reschedule a reminder:
+
+```go
+newTime := time.Now().Add(48 * time.Hour)
+
+reminder, err := client.Reminders.Edit(ctx, "reminder-id", &linkvite.EditReminderInput{
+    RemindAt: &newTime,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Reminder rescheduled to: %s\n", reminder.RemindAt.Format(time.RFC1123))
+```
+
+### Update Note
+
+Modify the reminder's context:
+
+```go
+note := "Updated priority: review before client presentation"
+
+reminder, err := client.Reminders.Edit(ctx, "reminder-id", &linkvite.EditReminderInput{
+    Note: &note,
+})
+```
+
+### Mark as Completed
+
+Mark a reminder as done:
+
+```go
+completed := true
+
+reminder, err := client.Reminders.Edit(ctx, "reminder-id", &linkvite.EditReminderInput{
+    Completed: &completed,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println("Reminder marked as completed")
+```
+
+### Update Multiple Fields
+
+Change time, note, and status together:
+
+```go
+newTime := time.Now().Add(7 * 24 * time.Hour)
+note := "Postponed to next week"
+completed := false
+
+reminder, err := client.Reminders.Edit(ctx, "reminder-id", &linkvite.EditReminderInput{
+    RemindAt:  &newTime,
+    Note:      &note,
+    Completed: &completed,
+})
+```
+
+## Batch Operations
+
+### Batch Mark as Completed
+
+Mark multiple reminders as done:
+
+```go
+completed := true
+
+err := client.Reminders.BatchEdit(ctx, &linkvite.BatchEditRemindersInput{
+    Reminders: []string{"reminder-1", "reminder-2", "reminder-3"},
+    Completed: &completed,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println("Batch marked as completed")
+```
+
+### Batch Reopen Reminders
+
+Reactivate completed reminders:
+
+```go
+completed := false
+
+err := client.Reminders.BatchEdit(ctx, &linkvite.BatchEditRemindersInput{
+    Reminders: []string{"reminder-1", "reminder-2"},
+    Completed: &completed,
+})
+```
+
+### Batch Delete Reminders
+
+Delete multiple reminders at once:
+
+```go
+err := client.Reminders.BatchDelete(ctx, &linkvite.BatchDeleteRemindersInput{
+    Reminders: []string{"reminder-1", "reminder-2", "reminder-3"},
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println("Batch deleted successfully")
+```
+
+### Clear All Completed Reminders
+
+Get completed reminders and delete them:
+
+```go
+result, err := client.Reminders.List(ctx, &linkvite.ListOptions{
+    Status: "completed",
+    Limit:  100,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+if len(result.Reminders) > 0 {
+    reminderIDs := make([]string, len(result.Reminders))
+    for i, r := range result.Reminders {
+        reminderIDs[i] = r.ID
+    }
+    
+    err = client.Reminders.BatchDelete(ctx, &linkvite.BatchDeleteRemindersInput{
+        Reminders: reminderIDs,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    fmt.Printf("Deleted %d completed reminders\n", len(reminderIDs))
+}
+```
+
+## Deleting Reminders
+
+### Delete Single Reminder
+
+Remove a specific reminder:
+
+```go
+err := client.Reminders.Delete(ctx, "reminder-id")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println("Reminder deleted")
+```
+
+### Clear All Reminders
+
+Delete all reminders for your account:
+
+```go
+err := client.Reminders.Clear(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println("All reminders cleared")
+```
+
+<Warning>
+`Clear()` permanently deletes all your reminders. This action cannot be undone.
+</Warning>
+
+## Complete Workflow Example
+
+Here's a complete workflow for managing a reading list with reminders:
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "time"
+    "github.com/yourusername/linkvite-go"
+)
+
+func main() {
+    ctx := context.Background()
+    client := linkvite.NewClient("your-api-key")
+
+    // Create a reading list collection
+    collection, err := client.Collections.Create(ctx, &linkvite.CreateCollectionInput{
+        Name:        "Weekly Reading List",
+        Description: "Articles to read this week",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Add bookmarks with staggered reminders
+    articles := []struct {
+        URL   string
+        Days  int
+        Note  string
+    }{
+        {
+            URL:  "https://example.com/article1",
+            Days: 1,
+            Note: "Morning read - technical deep dive",
+        },
+        {
+            URL:  "https://example.com/article2",
+            Days: 3,
+            Note: "Mid-week review",
+        },
+        {
+            URL:  "https://example.com/article3",
+            Days: 5,
+            Note: "Weekend reading",
+        },
+    }
+
+    for _, article := range articles {
+        // Create bookmark
+        bookmark, err := client.Bookmarks.Create(ctx, &linkvite.CreateBookmarkInput{
+            URL:        article.URL,
+            Collection: collection.ID,
+        })
+        if err != nil {
+            log.Printf("Failed to create bookmark: %v", err)
+            continue
+        }
+
+        // Set reminder
+        remindAt := time.Now().Add(time.Duration(article.Days) * 24 * time.Hour)
+        _, err = client.Reminders.Create(ctx, &linkvite.CreateReminderInput{
+            BookmarkID: bookmark.ID,
+            RemindAt:   remindAt,
+            Note:       article.Note,
+        })
+        if err != nil {
+            log.Printf("Failed to create reminder: %v", err)
+            continue
+        }
+
+        fmt.Printf("Added: %s (remind in %d days)\n", bookmark.Title, article.Days)
+    }
+
+    // Check upcoming reminders
+    result, err := client.Reminders.List(ctx, &linkvite.ListOptions{
+        Sort:  "remind_at",
+        Limit: 10,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("\nUpcoming Reminders (%d):\n", len(result.Reminders))
+    for _, reminder := range result.Reminders {
+        if reminder.Completed {
+            continue
+        }
+        daysUntil := time.Until(reminder.RemindAt).Hours() / 24
+        fmt.Printf("- %s (in %.1f days)\n", reminder.BookmarkTitle, daysUntil)
+        if reminder.Note != "" {
+            fmt.Printf("  Note: %s\n", reminder.Note)
+        }
+    }
+
+    // Simulate completing a reminder
+    if len(result.Reminders) > 0 {
+        firstReminder := result.Reminders[0]
+        completed := true
+        _, err = client.Reminders.Edit(ctx, firstReminder.ID, &linkvite.EditReminderInput{
+            Completed: &completed,
+        })
+        if err != nil {
+            log.Fatal(err)
+        }
+        fmt.Printf("\nMarked '%s' as completed\n", firstReminder.BookmarkTitle)
+    }
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Scheduling Strategy">
+    - Set reminders during your productive hours
+    - Space out reminders to avoid overwhelming yourself
+    - Use specific times (9 AM, 2 PM) rather than random times
+    - Consider time zones when collaborating with teams
+  </Accordion>
+
+  <Accordion title="Note Organization">
+    - Include action items in notes ("Review", "Discuss", "Implement")
+    - Reference related bookmarks or collections
+    - Add priority indicators ("URGENT", "LOW PRIORITY")
+    - Use consistent formatting for easy scanning
+  </Accordion>
+
+  <Accordion title="Maintenance">
+    - Review completed reminders weekly
+    - Delete or archive old reminders regularly
+    - Adjust recurring reminder schedules as needed
+    - Use batch operations for bulk management
+  </Accordion>
+
+  <Accordion title="Workflow Integration">
+    - Sync reminders with your calendar system
+    - Create reminders when adding bookmarks to collections
+    - Set follow-up reminders for important reads
+    - Use reminders for spaced repetition learning
+  </Accordion>
+</AccordionGroup>
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Reading Schedule" icon="calendar">
+    Create a structured reading plan with daily or weekly reminders for articles and documentation.
+  </Card>
+  
+  <Card title="Follow-up Tasks" icon="tasks">
+    Set reminders to revisit bookmarks after implementing ideas or completing related work.
+  </Card>
+  
+  <Card title="Review Cycles" icon="rotate">
+    Schedule periodic reviews of important documentation, policies, or reference materials.
+  </Card>
+  
+  <Card title="Content Calendar" icon="newspaper">
+    Plan content creation by setting reminders for source material and research articles.
+  </Card>
+</CardGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Bookmarks Guide" icon="bookmark" href="/guides/bookmarks">
+    Learn about bookmark creation and management
+  </Card>
+  <Card title="Collections Guide" icon="folder" href="/guides/collections">
+    Organize bookmarks into collections
+  </Card>
+  <Card title="Reminders API" icon="bell" href="/api/reminders">
+    Complete API reference for reminders
+  </Card>
+  <Card title="Batch Operations" icon="layer-group" href="/guides/reminders#batch-operations">
+    Efficient bulk operations guide
+  </Card>
+</CardGroup>

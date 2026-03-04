@@ -1,0 +1,411 @@
+---
+title: 'Search Service'
+description: 'Complete API reference for search operations'
+---
+
+The `SearchService` handles search operations across Linkvite, including searching bookmarks, collections, users, and external media sources like Unsplash and Tenor.
+
+## Accessing the Service
+
+```go
+client := linkvite.NewClient("your-api-key")
+search := client.Search
+```
+
+## Linkvite Search
+
+### Search
+
+Performs a search across Linkvite bookmarks, collections, and users.
+
+```go
+func (s *SearchService) Search(ctx context.Context, input *SearchInput) (*SearchResult, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="*SearchInput" required>
+  <Expandable title="SearchInput fields">
+    <ParamField path="Query" type="string" required>
+      Search query
+    </ParamField>
+    <ParamField path="Type" type="string">
+      Search type: "bookmarks", "collections", or "users". Leave empty to search all types.
+    </ParamField>
+    <ParamField path="Page" type="int64">
+      Page number for pagination
+    </ParamField>
+    <ParamField path="Limit" type="int64">
+      Number of results per page
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="result" type="*SearchResult">
+  <Expandable title="fields">
+    <ResponseField name="Bookmarks" type="[]*BookmarkWithMeta">
+      Matching bookmarks (if searching bookmarks)
+    </ResponseField>
+    <ResponseField name="Collections" type="[]*CollectionWithMeta">
+      Matching collections (if searching collections)
+    </ResponseField>
+    <ResponseField name="Users" type="[]*PublicProfile">
+      Matching users (if searching users)
+    </ResponseField>
+    <ResponseField name="Pagination" type="*Pagination">
+      Pagination information
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example: Search Everything**
+
+```go
+result, err := client.Search.Search(context.Background(), &linkvite.SearchInput{
+    Query: "golang",
+    Page:  1,
+    Limit: 20,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Bookmarks: %d\n", len(result.Bookmarks))
+fmt.Printf("Collections: %d\n", len(result.Collections))
+fmt.Printf("Users: %d\n", len(result.Users))
+```
+
+**Example: Search Only Bookmarks**
+
+```go
+result, err := client.Search.Search(context.Background(), &linkvite.SearchInput{
+    Query: "machine learning",
+    Type:  "bookmarks",
+    Page:  1,
+    Limit: 50,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+for _, bookmark := range result.Bookmarks {
+    fmt.Printf("%s - %s\n", bookmark.Title, bookmark.URL)
+}
+```
+
+**Example: Search Collections**
+
+```go
+result, err := client.Search.Search(context.Background(), &linkvite.SearchInput{
+    Query: "programming",
+    Type:  "collections",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+for _, collection := range result.Collections {
+    fmt.Printf("%s (%d bookmarks)\n", collection.Name, collection.BookmarksCount)
+}
+```
+
+**Example: Search Users**
+
+```go
+result, err := client.Search.Search(context.Background(), &linkvite.SearchInput{
+    Query: "john",
+    Type:  "users",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+for _, user := range result.Users {
+    fmt.Printf("@%s - %s\n", user.Username, user.Name)
+}
+```
+
+## Unsplash Integration
+
+### SearchUnsplash
+
+Searches for photos on Unsplash.
+
+```go
+func (s *SearchService) SearchUnsplash(ctx context.Context, query string, page int64) ([]*UnsplashPhoto, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="query" type="string" required>
+  Search query for photos
+</ParamField>
+
+<ParamField path="page" type="int64">
+  Page number for pagination
+</ParamField>
+
+<ResponseField name="photos" type="[]*UnsplashPhoto">
+  <Expandable title="UnsplashPhoto fields">
+    <ResponseField name="ID" type="string">
+      Photo ID
+    </ResponseField>
+    <ResponseField name="Description" type="string">
+      Photo description
+    </ResponseField>
+    <ResponseField name="URLs" type="object">
+      Photo URLs in various sizes (raw, full, regular, small, thumb)
+    </ResponseField>
+    <ResponseField name="User" type="object">
+      Photographer information (name, username)
+    </ResponseField>
+    <ResponseField name="Links" type="object">
+      Download and HTML links
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example**
+
+```go
+photos, err := client.Search.SearchUnsplash(context.Background(), "nature", 1)
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Found %d photos\n\n", len(photos))
+for _, photo := range photos {
+    fmt.Printf("Photo by %s (@%s)\n", photo.User.Name, photo.User.Username)
+    fmt.Printf("Description: %s\n", photo.Description)
+    fmt.Printf("URL: %s\n\n", photo.URLs.Regular)
+}
+```
+
+### TrackUnsplashDownload
+
+Tracks a download for Unsplash attribution (required by Unsplash API guidelines).
+
+```go
+func (s *SearchService) TrackUnsplashDownload(ctx context.Context, photoID string) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="photoID" type="string" required>
+  Unsplash photo ID to track
+</ParamField>
+
+**Example**
+
+```go
+// After using an Unsplash photo, track the download
+err := client.Search.TrackUnsplashDownload(context.Background(), "abc123xyz")
+if err != nil {
+    log.Printf("Failed to track download: %v", err)
+}
+```
+
+<Info>
+  According to Unsplash API guidelines, you must trigger a download event when using their photos. This helps photographers track their photo usage.
+</Info>
+
+## Tenor GIF Integration
+
+### SearchTenor
+
+Searches for GIFs on Tenor.
+
+```go
+func (s *SearchService) SearchTenor(ctx context.Context, query string) ([]*TenorGIF, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="query" type="string" required>
+  Search query for GIFs
+</ParamField>
+
+<ResponseField name="gifs" type="[]*TenorGIF">
+  <Expandable title="TenorGIF fields">
+    <ResponseField name="ID" type="string">
+      GIF ID
+    </ResponseField>
+    <ResponseField name="Title" type="string">
+      GIF title
+    </ResponseField>
+    <ResponseField name="Media" type="[]object">
+      Media formats including GIF and TinyGIF URLs
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example**
+
+```go
+gifs, err := client.Search.SearchTenor(context.Background(), "celebration")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Found %d GIFs\n\n", len(gifs))
+for _, gif := range gifs {
+    fmt.Printf("Title: %s\n", gif.Title)
+    if len(gif.Media) > 0 {
+        fmt.Printf("URL: %s\n\n", gif.Media[0].GIF.URL)
+    }
+}
+```
+
+## Complete Search Example
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "github.com/yourusername/linkvite-go"
+)
+
+func main() {
+    client := linkvite.NewClient("your-api-key")
+    ctx := context.Background()
+
+    // Search for bookmarks
+    fmt.Println("=== Searching Bookmarks ===")
+    bookmarkResults, err := client.Search.Search(ctx, &linkvite.SearchInput{
+        Query: "golang tutorial",
+        Type:  "bookmarks",
+        Limit: 10,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    for _, bookmark := range bookmarkResults.Bookmarks {
+        fmt.Printf("📚 %s\n", bookmark.Title)
+        fmt.Printf("   %s\n", bookmark.URL)
+        fmt.Printf("   By: %s\n\n", bookmark.OwnerName)
+    }
+
+    // Search for collections
+    fmt.Println("\n=== Searching Collections ===")
+    collectionResults, err := client.Search.Search(ctx, &linkvite.SearchInput{
+        Query: "web development",
+        Type:  "collections",
+        Limit: 5,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    for _, collection := range collectionResults.Collections {
+        fmt.Printf("📁 %s (%d bookmarks)\n", collection.Name, collection.BookmarksCount)
+        fmt.Printf("   Owner: @%s\n\n", collection.OwnerUsername)
+    }
+
+    // Search for users
+    fmt.Println("\n=== Searching Users ===")
+    userResults, err := client.Search.Search(ctx, &linkvite.SearchInput{
+        Query: "developer",
+        Type:  "users",
+        Limit: 5,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    for _, user := range userResults.Users {
+        fmt.Printf("👤 %s (@%s)\n", user.Name, user.Username)
+    }
+
+    // Search Unsplash for cover images
+    fmt.Println("\n=== Searching Unsplash ===")
+    photos, err := client.Search.SearchUnsplash(ctx, "technology", 1)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    for i, photo := range photos[:3] { // First 3 photos
+        fmt.Printf("%d. Photo by %s\n", i+1, photo.User.Name)
+        fmt.Printf("   %s\n", photo.URLs.Small)
+    }
+
+    // Search Tenor for reaction GIFs
+    fmt.Println("\n=== Searching Tenor ===")
+    gifs, err := client.Search.SearchTenor(ctx, "thumbs up")
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    for i, gif := range gifs[:3] { // First 3 GIFs
+        fmt.Printf("%d. %s\n", i+1, gif.Title)
+    }
+}
+```
+
+## Pagination Example
+
+```go
+// Paginate through search results
+page := int64(1)
+limit := int64(20)
+
+for {
+    result, err := client.Search.Search(ctx, &linkvite.SearchInput{
+        Query: "programming",
+        Type:  "bookmarks",
+        Page:  page,
+        Limit: limit,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("Page %d of %d\n", page, result.Pagination.LastPage)
+    
+    for _, bookmark := range result.Bookmarks {
+        fmt.Printf("- %s\n", bookmark.Title)
+    }
+
+    if page >= result.Pagination.LastPage {
+        break
+    }
+    page++
+}
+```
+
+## Error Handling
+
+All methods return an error. Always check for errors:
+
+```go
+result, err := client.Search.Search(context.Background(), &linkvite.SearchInput{
+    Query: "golang",
+})
+if err != nil {
+    log.Printf("Search failed: %v", err)
+    return
+}
+
+fmt.Printf("Found %d bookmarks\n", len(result.Bookmarks))
+```
+
+## Type Reference
+
+For detailed information about types used in this service, see:
+
+- [Search Types](/api/types#search)
+- [Bookmark Types](/api/types#bookmark)
+- [Collection Types](/api/types#collection)
+- [Public Profile](/api/types#public-profile)
+- [Pagination](/api/types#pagination)

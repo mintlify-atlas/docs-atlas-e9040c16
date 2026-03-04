@@ -1,0 +1,278 @@
+---
+title: Error handling
+description: Learn how to handle API errors effectively using the Linkvite Go SDK's error types and helper methods
+---
+
+The Linkvite Go SDK provides structured error handling through the `Error` type, which includes status codes, error messages, and helper methods for common error scenarios.
+
+## Error type
+
+API errors are returned as `*linkvite.Error` instances:
+
+```go linkvite.go
+type Error struct {
+    StatusCode int
+    Message    string
+    Errors     any
+}
+
+func (e *Error) Error() string {
+    if e.Message != "" {
+        return fmt.Sprintf("linkvite: %s", e.Message)
+    }
+    return fmt.Sprintf("linkvite: API error (status %d)", e.StatusCode)
+}
+```
+
+The `Error` struct contains:
+
+- **StatusCode**: HTTP status code from the API response
+- **Message**: Human-readable error message
+- **Errors**: Additional error details (if provided by the API)
+
+## Basic error handling
+
+All SDK methods return errors following Go conventions:
+
+```go
+user, err := client.User.Get(ctx)
+if err != nil {
+    log.Printf("Failed to get user: %v", err)
+    return err
+}
+```
+
+## Error type checking
+
+Use type assertion to access error details:
+
+```go
+bookmark, err := client.Bookmarks.Get(ctx, bookmarkID)
+if err != nil {
+    if apiErr, ok := err.(*linkvite.Error); ok {
+        fmt.Printf("API error (status %d): %s\n", apiErr.StatusCode, apiErr.Message)
+        if apiErr.Errors != nil {
+            fmt.Printf("Additional details: %v\n", apiErr.Errors)
+        }
+    } else {
+        fmt.Printf("Other error: %v\n", err)
+    }
+    return err
+}
+```
+
+## Error helper methods
+
+The `Error` type provides helper methods to check for specific HTTP status codes:
+
+### IsNotFound
+
+Check if the error is a 404 Not Found:
+
+```go linkvite.go
+func (e *Error) IsNotFound() bool { return e.StatusCode == http.StatusNotFound }
+```
+
+Usage example:
+
+```go
+bookmark, err := client.Bookmarks.Get(ctx, bookmarkID)
+if err != nil {
+    if apiErr, ok := err.(*linkvite.Error); ok && apiErr.IsNotFound() {
+        fmt.Println("Bookmark not found")
+        // Handle missing resource
+        return nil
+    }
+    return err
+}
+```
+
+### IsUnauthorized
+
+Check if the error is a 401 Unauthorized:
+
+```go linkvite.go
+func (e *Error) IsUnauthorized() bool { return e.StatusCode == http.StatusUnauthorized }
+```
+
+Usage example:
+
+```go
+user, err := client.User.Get(ctx)
+if err != nil {
+    if apiErr, ok := err.(*linkvite.Error); ok && apiErr.IsUnauthorized() {
+        fmt.Println("Invalid or expired credentials")
+        // Attempt to refresh token or re-authenticate
+        if err := client.RefreshAccessToken(ctx); err != nil {
+            return fmt.Errorf("failed to refresh token: %w", err)
+        }
+        // Retry the request
+        user, err = client.User.Get(ctx)
+    }
+    if err != nil {
+        return err
+    }
+}
+```
+
+### IsForbidden
+
+Check if the error is a 403 Forbidden:
+
+```go linkvite.go
+func (e *Error) IsForbidden() bool { return e.StatusCode == http.StatusForbidden }
+```
+
+Usage example:
+
+```go
+err := client.Collections.Delete(ctx, collectionID)
+if err != nil {
+    if apiErr, ok := err.(*linkvite.Error); ok && apiErr.IsForbidden() {
+        fmt.Println("You don't have permission to delete this collection")
+        return nil
+    }
+    return err
+}
+```
+
+### IsRateLimited
+
+Check if the error is a 429 Too Many Requests:
+
+```go linkvite.go
+func (e *Error) IsRateLimited() bool { return e.StatusCode == http.StatusTooManyRequests }
+```
+
+Usage example:
+
+```go
+import "time"
+
+func createBookmarkWithRetry(ctx context.Context, client *linkvite.Client, input *linkvite.CreateBookmarkInput) (*linkvite.Bookmark, error) {
+    bookmark, err := client.Bookmarks.Create(ctx, input)
+    if err != nil {
+        if apiErr, ok := err.(*linkvite.Error); ok && apiErr.IsRateLimited() {
+            fmt.Println("Rate limited, waiting before retry...")
+            time.Sleep(5 * time.Second)
+            return client.Bookmarks.Create(ctx, input)
+        }
+        return nil, err
+    }
+    return bookmark, nil
+}
+```
+
+## Complete error handling pattern
+
+Here's a comprehensive example combining multiple error checks:
+
+```go
+func handleBookmarkOperation(ctx context.Context, client *linkvite.Client, bookmarkID string) error {
+    bookmark, err := client.Bookmarks.Get(ctx, bookmarkID)
+    if err != nil {
+        // Check if it's an API error
+        apiErr, ok := err.(*linkvite.Error)
+        if !ok {
+            // Non-API error (network, timeout, etc.)
+            return fmt.Errorf("request failed: %w", err)
+        }
+
+        // Handle specific status codes
+        switch {
+        case apiErr.IsNotFound():
+            return fmt.Errorf("bookmark %s does not exist", bookmarkID)
+        case apiErr.IsUnauthorized():
+            // Try to refresh token
+            if refreshErr := client.RefreshAccessToken(ctx); refreshErr != nil {
+                return fmt.Errorf("authentication failed: %w", refreshErr)
+            }
+            // Retry the request
+            bookmark, err = client.Bookmarks.Get(ctx, bookmarkID)
+            if err != nil {
+                return err
+            }
+        case apiErr.IsForbidden():
+            return fmt.Errorf("access denied to bookmark %s", bookmarkID)
+        case apiErr.IsRateLimited():
+            return fmt.Errorf("rate limit exceeded, try again later")
+        default:
+            return fmt.Errorf("API error (status %d): %s", apiErr.StatusCode, apiErr.Message)
+        }
+    }
+
+    // Process the bookmark
+    fmt.Printf("Retrieved bookmark: %s\n", bookmark.Title)
+    return nil
+}
+```
+
+## Validation errors
+
+The API may return validation errors in the `Errors` field:
+
+```go
+input := &linkvite.CreateBookmarkInput{
+    URL: "invalid-url",
+}
+
+bookmark, err := client.Bookmarks.Create(ctx, input)
+if err != nil {
+    if apiErr, ok := err.(*linkvite.Error); ok {
+        fmt.Printf("Error: %s\n", apiErr.Message)
+        if apiErr.Errors != nil {
+            fmt.Printf("Validation errors: %v\n", apiErr.Errors)
+        }
+    }
+}
+```
+
+## Best practices
+
+<AccordionGroup>
+  <Accordion title="Always check errors">
+    Never ignore errors returned by SDK methods. Always check and handle them appropriately.
+
+    ```go
+    // Bad
+    client.Bookmarks.Delete(ctx, bookmarkID)
+
+    // Good
+    if err := client.Bookmarks.Delete(ctx, bookmarkID); err != nil {
+        return fmt.Errorf("failed to delete bookmark: %w", err)
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Use type assertions for detailed errors">
+    Type assert to `*linkvite.Error` to access status codes and helper methods.
+
+    ```go
+    if apiErr, ok := err.(*linkvite.Error); ok {
+        // Access error details
+        log.Printf("Status: %d, Message: %s", apiErr.StatusCode, apiErr.Message)
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Handle rate limiting gracefully">
+    Implement retry logic with exponential backoff when handling rate limits.
+
+    ```go
+    if apiErr, ok := err.(*linkvite.Error); ok && apiErr.IsRateLimited() {
+        time.Sleep(5 * time.Second)
+        // Retry the operation
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Wrap errors with context">
+    Use `fmt.Errorf` with `%w` to add context while preserving the original error.
+
+    ```go
+    if err != nil {
+        return fmt.Errorf("failed to create bookmark for URL %s: %w", url, err)
+    }
+    ```
+  </Accordion>
+</AccordionGroup>

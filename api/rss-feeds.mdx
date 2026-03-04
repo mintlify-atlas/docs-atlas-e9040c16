@@ -1,0 +1,431 @@
+---
+title: 'RSS Feeds Service'
+description: 'Complete API reference for RSS feed subscription operations'
+---
+
+The `RSSFeedsService` handles operations for subscribing to and managing RSS feeds, which automatically create bookmarks from feed items.
+
+## Accessing the Service
+
+```go
+client := linkvite.NewClient("your-api-key")
+rssFeeds := client.RSSFeeds
+```
+
+## List and Retrieve Operations
+
+### List
+
+Retrieves all RSS feed subscriptions for the current user.
+
+```go
+func (s *RSSFeedsService) List(ctx context.Context, opts *ListOptions) ([]*RSSFeedWithMeta, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="opts" type="*ListOptions">
+  Pagination and filtering options
+</ParamField>
+
+<ResponseField name="feeds" type="[]*RSSFeedWithMeta">
+  Array of RSS feeds with metadata including item count
+</ResponseField>
+
+**Example**
+
+```go
+feeds, err := client.RSSFeeds.List(context.Background(), &linkvite.ListOptions{
+    Limit: 50,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("RSS Subscriptions (%d):\n\n", len(feeds))
+for _, feed := range feeds {
+    fmt.Printf("%s\n", feed.Title)
+    fmt.Printf("  URL: %s\n", feed.URL)
+    fmt.Printf("  Items: %d\n", feed.ItemCount)
+    if feed.CollectionName != "" {
+        fmt.Printf("  Collection: %s\n", feed.CollectionName)
+    }
+    if feed.LastFetchAt != nil {
+        fmt.Printf("  Last fetched: %s\n", feed.LastFetchAt.Format("Jan 2, 2006 15:04"))
+    }
+    fmt.Println()
+}
+```
+
+### GetItems
+
+Retrieves items from an RSS feed.
+
+```go
+func (s *RSSFeedsService) GetItems(ctx context.Context, id string) ([]*RSSFeedItem, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  RSS feed ID
+</ParamField>
+
+<ResponseField name="items" type="[]*RSSFeedItem">
+  <Expandable title="RSSFeedItem fields">
+    <ResponseField name="Title" type="string">
+      Item title
+    </ResponseField>
+    <ResponseField name="Description" type="string">
+      Item description
+    </ResponseField>
+    <ResponseField name="Link" type="string">
+      Item URL
+    </ResponseField>
+    <ResponseField name="Published" type="string">
+      Publication date
+    </ResponseField>
+    <ResponseField name="Author" type="string">
+      Item author
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example**
+
+```go
+items, err := client.RSSFeeds.GetItems(context.Background(), "feed-123")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Feed Items (%d):\n\n", len(items))
+for i, item := range items {
+    fmt.Printf("%d. %s\n", i+1, item.Title)
+    fmt.Printf("   By: %s\n", item.Author)
+    fmt.Printf("   Published: %s\n", item.Published)
+    fmt.Printf("   %s\n\n", item.Link)
+}
+```
+
+## Create Operations
+
+### Create
+
+Creates a new RSS feed subscription.
+
+```go
+func (s *RSSFeedsService) Create(ctx context.Context, input *CreateRSSFeedInput) (*RSSFeed, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="*CreateRSSFeedInput" required>
+  <Expandable title="CreateRSSFeedInput fields">
+    <ParamField path="URL" type="string" required>
+      RSS feed URL
+    </ParamField>
+    <ParamField path="CollectionID" type="string">
+      Optional collection ID to add feed items to
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="feed" type="*RSSFeed">
+  The created RSS feed subscription
+</ResponseField>
+
+**Example**
+
+```go
+feed, err := client.RSSFeeds.Create(context.Background(), &linkvite.CreateRSSFeedInput{
+    URL:          "https://blog.golang.org/feed.atom",
+    CollectionID: "my-tech-collection",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Subscribed to: %s\n", feed.Title)
+fmt.Printf("Feed ID: %s\n", feed.ID)
+```
+
+<Info>
+  When you subscribe to an RSS feed, Linkvite will automatically fetch new items and create bookmarks from them.
+</Info>
+
+## Update Operations
+
+### Edit
+
+Updates an RSS feed subscription.
+
+```go
+func (s *RSSFeedsService) Edit(ctx context.Context, id string, input *EditRSSFeedInput) (*RSSFeed, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  RSS feed ID
+</ParamField>
+
+<ParamField path="input" type="*EditRSSFeedInput" required>
+  <Expandable title="EditRSSFeedInput fields">
+    <ParamField path="Title" type="string">
+      Custom title for the feed
+    </ParamField>
+    <ParamField path="CollectionID" type="*string">
+      Move feed items to a different collection
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="feed" type="*RSSFeed">
+  The updated RSS feed
+</ResponseField>
+
+**Example**
+
+```go
+newCollection := "updated-collection-id"
+
+feed, err := client.RSSFeeds.Edit(context.Background(), "feed-123", &linkvite.EditRSSFeedInput{
+    Title:        "Custom Feed Title",
+    CollectionID: &newCollection,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Feed updated: %s\n", feed.Title)
+```
+
+## Delete Operations
+
+### BatchDelete
+
+Deletes multiple RSS feed subscriptions at once.
+
+```go
+func (s *RSSFeedsService) BatchDelete(ctx context.Context, input *BatchDeleteRSSFeedsInput) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="*BatchDeleteRSSFeedsInput" required>
+  <Expandable title="BatchDeleteRSSFeedsInput fields">
+    <ParamField path="Feeds" type="[]string" required>
+      Array of RSS feed IDs to delete
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Example**
+
+```go
+err := client.RSSFeeds.BatchDelete(context.Background(), &linkvite.BatchDeleteRSSFeedsInput{
+    Feeds: []string{"feed-1", "feed-2", "feed-3"},
+})
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("RSS feeds unsubscribed")
+```
+
+<Note>
+  Deleting an RSS feed subscription does not delete the bookmarks that were created from it.
+</Note>
+
+## Complete RSS Feed Management Example
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "github.com/yourusername/linkvite-go"
+)
+
+func main() {
+    client := linkvite.NewClient("your-api-key")
+    ctx := context.Background()
+
+    // Subscribe to multiple feeds
+    feeds := []string{
+        "https://blog.golang.org/feed.atom",
+        "https://github.blog/feed/",
+        "https://www.theverge.com/rss/index.xml",
+    }
+
+    collectionID := "tech-news-collection"
+
+    for _, feedURL := range feeds {
+        feed, err := client.RSSFeeds.Create(ctx, &linkvite.CreateRSSFeedInput{
+            URL:          feedURL,
+            CollectionID: collectionID,
+        })
+        if err != nil {
+            log.Printf("Failed to subscribe to %s: %v", feedURL, err)
+            continue
+        }
+        fmt.Printf("Subscribed to: %s\n", feed.Title)
+    }
+
+    // List all subscriptions
+    allFeeds, err := client.RSSFeeds.List(ctx, nil)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("\nTotal RSS subscriptions: %d\n\n", len(allFeeds))
+
+    // Get items from each feed
+    for _, feed := range allFeeds {
+        fmt.Printf("=== %s ===\n", feed.Title)
+        
+        items, err := client.RSSFeeds.GetItems(ctx, feed.ID)
+        if err != nil {
+            log.Printf("Failed to get items: %v", err)
+            continue
+        }
+
+        fmt.Printf("Recent items: %d\n", len(items))
+        for i, item := range items {
+            if i >= 3 { // Show first 3 items
+                break
+            }
+            fmt.Printf("  %d. %s\n", i+1, item.Title)
+        }
+        fmt.Println()
+    }
+}
+```
+
+## Managing Feed Updates
+
+```go
+// Check when feeds were last updated
+feeds, err := client.RSSFeeds.List(ctx, nil)
+if err != nil {
+    log.Fatal(err)
+}
+
+import "time"
+
+for _, feed := range feeds {
+    if feed.LastFetchAt == nil {
+        fmt.Printf("%s - Never fetched\n", feed.Title)
+        continue
+    }
+
+    timeSince := time.Since(*feed.LastFetchAt)
+    
+    if timeSince > 24*time.Hour {
+        fmt.Printf("%s - Last updated %.0f hours ago\n", 
+            feed.Title, 
+            timeSince.Hours(),
+        )
+    } else {
+        fmt.Printf("%s - Last updated %.0f minutes ago\n", 
+            feed.Title, 
+            timeSince.Minutes(),
+        )
+    }
+}
+```
+
+## Organizing Feeds by Collection
+
+```go
+// Group feeds by collection
+feeds, err := client.RSSFeeds.List(ctx, nil)
+if err != nil {
+    log.Fatal(err)
+}
+
+feedsByCollection := make(map[string][]*linkvite.RSSFeedWithMeta)
+
+for _, feed := range feeds {
+    collectionName := feed.CollectionName
+    if collectionName == "" {
+        collectionName = "Uncategorized"
+    }
+    feedsByCollection[collectionName] = append(feedsByCollection[collectionName], feed)
+}
+
+for collection, collectionFeeds := range feedsByCollection {
+    fmt.Printf("\n=== %s ===\n", collection)
+    for _, feed := range collectionFeeds {
+        fmt.Printf("  - %s (%d items)\n", feed.Title, feed.ItemCount)
+    }
+}
+```
+
+## Bulk Operations Example
+
+```go
+// Unsubscribe from inactive feeds
+feeds, err := client.RSSFeeds.List(ctx, nil)
+if err != nil {
+    log.Fatal(err)
+}
+
+var inactiveFeeds []string
+
+for _, feed := range feeds {
+    // If feed hasn't been fetched in 30 days or has no items
+    if feed.LastFetchAt != nil {
+        daysSince := time.Since(*feed.LastFetchAt).Hours() / 24
+        if daysSince > 30 || feed.ItemCount == 0 {
+            inactiveFeeds = append(inactiveFeeds, feed.ID)
+        }
+    }
+}
+
+if len(inactiveFeeds) > 0 {
+    fmt.Printf("Unsubscribing from %d inactive feeds\n", len(inactiveFeeds))
+    err = client.RSSFeeds.BatchDelete(ctx, &linkvite.BatchDeleteRSSFeedsInput{
+        Feeds: inactiveFeeds,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Println("Cleanup complete")
+}
+```
+
+## Error Handling
+
+All methods return an error. Always check for errors:
+
+```go
+feeds, err := client.RSSFeeds.List(context.Background(), nil)
+if err != nil {
+    log.Printf("Failed to get RSS feeds: %v", err)
+    return
+}
+
+for _, feed := range feeds {
+    fmt.Println(feed.Title)
+}
+```
+
+## Type Reference
+
+For detailed information about types used in this service, see:
+
+- [RSS Feed Types](/api/types#rss-feed)
+- [List Options](/api/types#list-options)

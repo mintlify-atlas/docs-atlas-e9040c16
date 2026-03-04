@@ -1,0 +1,268 @@
+---
+title: Client
+description: Learn about the Linkvite Go SDK client architecture, configuration options, and service organization
+---
+
+The Linkvite Go SDK is organized around a central `Client` struct that provides access to all API functionality through specialized service objects.
+
+## Client structure
+
+The `Client` struct serves as the main entry point for interacting with the Linkvite API. It manages authentication, HTTP communication, and provides access to service-specific operations.
+
+```go linkvite.go
+type Client struct {
+    httpClient *http.Client
+    baseURL    string
+    userAgent  string
+
+    authType     AuthType
+    apiKey       string
+    accessToken  string
+    refreshToken string
+
+    User        *UserService
+    Bookmarks   *BookmarksService
+    Collections *CollectionsService
+    Comments    *CommentsService
+    Highlights  *HighlightsService
+    Reminders   *RemindersService
+    Invites     *InvitesService
+    Search      *SearchService
+    RSSFeeds    *RSSFeedsService
+    APIKeys     *APIKeysService
+    Parser      *ParserService
+}
+```
+
+## Service architecture
+
+Each service object provides methods for specific API operations. You access services through the client instance:
+
+```go
+// Get current user
+user, err := client.User.Get(ctx)
+
+// Create a bookmark
+bookmark, err := client.Bookmarks.Create(ctx, &linkvite.CreateBookmarkInput{
+    URL: "https://example.com",
+})
+
+// List collections
+collections, err := client.Collections.List(ctx, &linkvite.ListOptions{})
+```
+
+## Creating a client
+
+The SDK supports three authentication methods:
+
+### API key authentication
+
+Use an API key for server-side applications:
+
+```go
+client, err := linkvite.NewClient("link_your-api-key")
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+### Token authentication
+
+Use access and refresh tokens from a previous session:
+
+```go
+client, err := linkvite.NewClientWithTokens(accessToken, refreshToken)
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+### Credential authentication
+
+Authenticate with username/email and password:
+
+```go
+client, err := linkvite.NewClientWithCredentials(
+    ctx,
+    "user@example.com",
+    "password",
+)
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+## Configuration options
+
+You can customize the client using functional options:
+
+### WithBaseURL
+
+Set a custom API base URL:
+
+```go linkvite.go
+func WithBaseURL(u string) Option {
+    return func(c *Client) error {
+        ul := strings.TrimSpace(u)
+        if ul == "" {
+            return fmt.Errorf("linkvite: baseURL cannot be empty")
+        }
+        c.baseURL = ul
+        return nil
+    }
+}
+```
+
+Usage example:
+
+```go
+client, err := linkvite.NewClient(
+    apiKey,
+    linkvite.WithBaseURL("https://api.custom.com"),
+)
+```
+
+### WithHTTPClient
+
+Provide a custom HTTP client with specific timeout or transport settings:
+
+```go linkvite.go
+func WithHTTPClient(hc *http.Client) Option {
+    return func(c *Client) error {
+        if hc == nil {
+            return fmt.Errorf("linkvite: http client cannot be nil")
+        }
+        c.httpClient = hc
+        return nil
+    }
+}
+```
+
+Usage example:
+
+```go
+customHTTP := &http.Client{
+    Timeout: 60 * time.Second,
+}
+
+client, err := linkvite.NewClient(
+    apiKey,
+    linkvite.WithHTTPClient(customHTTP),
+)
+```
+
+### WithUserAgent
+
+Set a custom User-Agent header:
+
+```go linkvite.go
+func WithUserAgent(ua string) Option {
+    return func(c *Client) error {
+        u := strings.TrimSpace(ua)
+        if u == "" {
+            return fmt.Errorf("linkvite: userAgent cannot be empty")
+        }
+        c.userAgent = u
+        return nil
+    }
+}
+```
+
+Usage example:
+
+```go
+client, err := linkvite.NewClient(
+    apiKey,
+    linkvite.WithUserAgent("MyApp/1.0"),
+)
+```
+
+### Combining options
+
+You can pass multiple options to customize the client:
+
+```go
+client, err := linkvite.NewClient(
+    apiKey,
+    linkvite.WithBaseURL("https://api.custom.com"),
+    linkvite.WithHTTPClient(customHTTP),
+    linkvite.WithUserAgent("MyApp/1.0"),
+)
+```
+
+## Context usage
+
+All SDK methods accept a `context.Context` parameter for request cancellation and timeout control:
+
+```go
+ctx := context.Background()
+
+// Get current user
+user, err := client.User.Get(ctx)
+
+// Use context with timeout
+ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+defer cancel()
+
+bookmarks, err := client.Bookmarks.List(ctx, &linkvite.ListOptions{
+    Page:  1,
+    Limit: 20,
+})
+```
+
+## Token refresh
+
+When using token authentication, you can refresh the access token:
+
+```go linkvite.go
+func (c *Client) RefreshAccessToken(ctx context.Context) error {
+    if c.refreshToken == "" {
+        return fmt.Errorf("linkvite: no refresh token available")
+    }
+
+    var result struct {
+        AccessToken  string `json:"access_token"`
+        RefreshToken string `json:"refresh_token"`
+    }
+    err := c.post(ctx, "/auth/token/refresh", map[string]string{"refresh_token": c.refreshToken}, &result)
+    if err != nil {
+        return err
+    }
+    c.accessToken = result.AccessToken
+    c.refreshToken = result.RefreshToken
+    return nil
+}
+```
+
+Usage example:
+
+```go
+err := client.RefreshAccessToken(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+## Default configuration
+
+The client uses sensible defaults:
+
+- **Base URL**: `https://api.linkvite.io`
+- **HTTP timeout**: 30 seconds
+- **User-Agent**: `linkvite-go/{version}`
+
+```go linkvite.go
+const (
+    DefaultBaseURL = "https://api.linkvite.io"
+)
+
+func NewClient(apiKey string, opts ...Option) (*Client, error) {
+    c := &Client{
+        httpClient: &http.Client{Timeout: 30 * time.Second},
+        baseURL:    DefaultBaseURL,
+        userAgent:  fmt.Sprintf("linkvite-go/%s", Version),
+        authType:   AuthTypeUnset,
+    }
+    // ...
+}
+```

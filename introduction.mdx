@@ -1,0 +1,155 @@
+---
+title: Introduction
+description: Official Go SDK for the Linkvite bookmarking service
+---
+
+The Linkvite Go SDK provides a complete, type-safe interface to the Linkvite API. You can use it to build applications that save, organize, and manage bookmarks programmatically.
+
+## What is Linkvite?
+
+Linkvite is a bookmarking service that helps you save, organize, and share web content. The platform supports:
+
+- Bookmark management with metadata extraction
+- Collections for organizing bookmarks
+- Collaborative collections with team members
+- Full-text search across your bookmarks
+- RSS feed subscriptions
+- Reminders and highlights
+- Archive creation for offline access
+
+## Why use the Go SDK?
+
+The SDK abstracts away the complexity of making HTTP requests and handling API responses, giving you:
+
+**Type safety**: All API inputs and outputs are strongly typed with Go structs
+
+**Multiple authentication methods**: Support for API keys, access tokens, and username/password authentication
+
+**Comprehensive error handling**: Dedicated error types with helper methods for common HTTP status codes
+
+**Pagination support**: Built-in pagination for list operations
+
+**Context support**: All operations accept `context.Context` for cancellation and timeouts
+
+**Production-ready**: Includes retry logic, proper timeout handling, and connection pooling
+
+## Key features
+
+The SDK provides access to all Linkvite API features through service-based organization:
+
+<CardGroup cols={2}>
+  <Card title="Bookmarks" icon="bookmark">
+    Create, edit, delete, and search bookmarks. Toggle stars, check existence, and manage tags.
+  </Card>
+  
+  <Card title="Collections" icon="folder">
+    Organize bookmarks into collections. Manage members, set permissions, and control privacy.
+  </Card>
+  
+  <Card title="Search" icon="magnifying-glass">
+    Search across bookmarks, collections, and users. Integrate with Unsplash and Tenor APIs.
+  </Card>
+  
+  <Card title="User Management" icon="user">
+    Get user profiles, update settings, manage storage, and empty trash.
+  </Card>
+  
+  <Card title="Highlights" icon="highlighter">
+    Create and manage text highlights with notes and multiple color options.
+  </Card>
+  
+  <Card title="Reminders" icon="bell">
+    Set reminders for bookmarks with custom notes and completion tracking.
+  </Card>
+  
+  <Card title="Comments" icon="comment">
+    Add comments to bookmarks, like comments, and moderate content.
+  </Card>
+  
+  <Card title="RSS Feeds" icon="rss">
+    Subscribe to RSS feeds and automatically save items as bookmarks.
+  </Card>
+</CardGroup>
+
+## Architecture overview
+
+The SDK is organized around a central `Client` type that manages authentication and HTTP communication:
+
+```go
+type Client struct {
+    User        *UserService
+    Bookmarks   *BookmarksService
+    Collections *CollectionsService
+    Comments    *CommentsService
+    Highlights  *HighlightsService
+    Reminders   *RemindersService
+    Invites     *InvitesService
+    Search      *SearchService
+    RSSFeeds    *RSSFeedsService
+    APIKeys     *APIKeysService
+    Parser      *ParserService
+}
+```
+
+Each service handles a specific domain of the API. All methods accept a `context.Context` as the first parameter and return strongly-typed results.
+
+### Authentication flow
+
+The SDK supports three authentication methods:
+
+<Steps>
+  <Step title="API Key Authentication">
+    Best for server-side applications and scripts. API keys are prefixed with `link_` and don't expire.
+    
+    ```go
+    client, err := linkvite.NewClient("link_your-api-key")
+    ```
+  </Step>
+  
+  <Step title="Access Token Authentication">
+    Best for user sessions. Access tokens expire after a period and can be refreshed.
+    
+    ```go
+    client, err := linkvite.NewClientWithTokens(accessToken, refreshToken)
+    ```
+  </Step>
+  
+  <Step title="Credential Authentication">
+    Best for interactive applications. Exchanges username/password for access tokens.
+    
+    ```go
+    client, err := linkvite.NewClientWithCredentials(ctx, "user@example.com", "password")
+    ```
+  </Step>
+</Steps>
+
+### Error handling
+
+All SDK methods return errors that can be type-asserted to `*linkvite.Error` for detailed information:
+
+```go
+bookmark, err := client.Bookmarks.Get(ctx, "bmk_123")
+if err != nil {
+    if apiErr, ok := err.(*linkvite.Error); ok {
+        if apiErr.IsNotFound() {
+            // Handle 404
+        } else if apiErr.IsUnauthorized() {
+            // Handle 401
+        } else if apiErr.IsRateLimited() {
+            // Handle 429
+        }
+    }
+}
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install the SDK and verify your setup
+  </Card>
+  
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Create your first bookmark in under 5 minutes
+  </Card>
+</CardGroup>

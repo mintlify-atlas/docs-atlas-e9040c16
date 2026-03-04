@@ -1,0 +1,577 @@
+---
+title: 'Client'
+description: 'Core client configuration and authentication'
+---
+
+The `Client` is the main entry point for interacting with the Linkvite API. It handles authentication, configuration, and provides access to all service endpoints.
+
+## Client Structure
+
+The `Client` struct provides access to all Linkvite API services:
+
+```go
+type Client struct {
+    User        *UserService
+    Bookmarks   *BookmarksService
+    Collections *CollectionsService
+    Comments    *CommentsService
+    Highlights  *HighlightsService
+    Reminders   *RemindersService
+    Invites     *InvitesService
+    Search      *SearchService
+    RSSFeeds    *RSSFeedsService
+    APIKeys     *APIKeysService
+    Parser      *ParserService
+}
+```
+
+## Constants
+
+### DefaultBaseURL
+
+The default Linkvite API base URL.
+
+```go
+const DefaultBaseURL = "https://api.linkvite.io"
+```
+
+### AuthType
+
+Authentication type constants indicate which authentication method the client is using:
+
+```go
+const (
+    AuthTypeUnset        AuthType = iota  // No authentication method set
+    AuthTypeAPIKey                        // API key authentication
+    AuthTypeAccessToken                   // Access token authentication
+)
+```
+
+## Creating a Client
+
+### NewClient
+
+Creates a new Linkvite API client with the specified authentication and options.
+
+```go
+func NewClient(apiKey string, opts ...Option) (*Client, error)
+```
+
+<ParamField path="apiKey" type="string" required>
+  API key for authentication. Must start with `link_`. Pass an empty string if using token-based authentication with options.
+</ParamField>
+
+<ParamField path="opts" type="...Option">
+  Optional configuration options to customize the client.
+</ParamField>
+
+<ResponseField name="client" type="*Client">
+  The configured Linkvite API client.
+</ResponseField>
+
+<ResponseField name="error" type="error">
+  An error if client creation fails (e.g., invalid credentials, missing authentication).
+</ResponseField>
+
+**Example:**
+
+```go
+// Create client with API key
+client, err := linkvite.NewClient("link_your-api-key")
+if err != nil {
+    log.Fatal(err)
+}
+
+// Create client with custom configuration
+client, err := linkvite.NewClient(
+    "link_your-api-key",
+    linkvite.WithBaseURL("https://custom.api.url"),
+    linkvite.WithUserAgent("MyApp/1.0"),
+)
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+### NewClientWithTokens
+
+Creates a new Linkvite API client using access and refresh tokens.
+
+```go
+func NewClientWithTokens(accessToken, refreshToken string, opts ...Option) (*Client, error)
+```
+
+<ParamField path="accessToken" type="string" required>
+  OAuth access token for authenticating API requests.
+</ParamField>
+
+<ParamField path="refreshToken" type="string" required>
+  OAuth refresh token for renewing expired access tokens.
+</ParamField>
+
+<ParamField path="opts" type="...Option">
+  Optional configuration options to customize the client.
+</ParamField>
+
+<ResponseField name="client" type="*Client">
+  The configured Linkvite API client.
+</ResponseField>
+
+<ResponseField name="error" type="error">
+  An error if client creation fails.
+</ResponseField>
+
+**Example:**
+
+```go
+client, err := linkvite.NewClientWithTokens(accessToken, refreshToken)
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+### NewClientWithCredentials
+
+Creates a new client by logging in with a username or email and password.
+
+```go
+func NewClientWithCredentials(ctx context.Context, identifier, password string, opts ...Option) (*Client, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the login request.
+</ParamField>
+
+<ParamField path="identifier" type="string" required>
+  Username or email address for authentication.
+</ParamField>
+
+<ParamField path="password" type="string" required>
+  User password.
+</ParamField>
+
+<ParamField path="opts" type="...Option">
+  Optional configuration options applied to both the login request and the resulting client.
+</ParamField>
+
+<ResponseField name="client" type="*Client">
+  The authenticated Linkvite API client.
+</ResponseField>
+
+<ResponseField name="error" type="error">
+  An error if authentication fails.
+</ResponseField>
+
+**Example:**
+
+```go
+client, err := linkvite.NewClientWithCredentials(
+    ctx,
+    "user@example.com",
+    "your-password",
+)
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+## Authentication
+
+### Login
+
+Authenticates with an identifier (username or email) and password, returning tokens and user information. Use the returned tokens with `NewClientWithTokens` to create an authenticated client.
+
+```go
+func Login(ctx context.Context, identifier, password string, opts ...Option) (*LoginResult, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the login request.
+</ParamField>
+
+<ParamField path="identifier" type="string" required>
+  Username or email address for authentication.
+</ParamField>
+
+<ParamField path="password" type="string" required>
+  User password.
+</ParamField>
+
+<ParamField path="opts" type="...Option">
+  Optional configuration options for the login request.
+</ParamField>
+
+<ResponseField name="result" type="*LoginResult">
+  Login result containing tokens and user information.
+</ResponseField>
+
+<ResponseField name="error" type="error">
+  An error if authentication fails.
+</ResponseField>
+
+**LoginResult Structure:**
+
+```go
+type LoginResult struct {
+    AccessToken  string
+    RefreshToken string
+    User         User
+}
+```
+
+**Example:**
+
+```go
+result, err := linkvite.Login(ctx, "user@example.com", "password")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Logged in as: %s\n", result.User.Name)
+fmt.Printf("Access Token: %s\n", result.AccessToken)
+
+// Create a client with the tokens
+client, err := linkvite.NewClientWithTokens(
+    result.AccessToken,
+    result.RefreshToken,
+)
+```
+
+### RefreshAccessToken
+
+Refreshes the access token using the refresh token. This method updates the client's access token automatically.
+
+```go
+func (c *Client) RefreshAccessToken(ctx context.Context) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the refresh request.
+</ParamField>
+
+<ResponseField name="error" type="error">
+  An error if the refresh fails or no refresh token is available.
+</ResponseField>
+
+**Example:**
+
+```go
+err := client.RefreshAccessToken(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+## Configuration Options
+
+Options allow you to customize the client's behavior. You can pass options to `NewClient`, `NewClientWithTokens`, `NewClientWithCredentials`, or `Login`.
+
+### WithBaseURL
+
+Sets a custom base URL for the API.
+
+```go
+func WithBaseURL(u string) Option
+```
+
+<ParamField path="u" type="string" required>
+  The custom base URL. Cannot be empty.
+</ParamField>
+
+**Example:**
+
+```go
+client, err := linkvite.NewClient(
+    "link_your-api-key",
+    linkvite.WithBaseURL("https://api.staging.linkvite.io"),
+)
+```
+
+### WithHTTPClient
+
+Sets a custom HTTP client for making requests.
+
+```go
+func WithHTTPClient(hc *http.Client) Option
+```
+
+<ParamField path="hc" type="*http.Client" required>
+  The custom HTTP client. Cannot be nil.
+</ParamField>
+
+**Example:**
+
+```go
+httpClient := &http.Client{
+    Timeout: 60 * time.Second,
+    Transport: &http.Transport{
+        MaxIdleConns: 100,
+    },
+}
+
+client, err := linkvite.NewClient(
+    "link_your-api-key",
+    linkvite.WithHTTPClient(httpClient),
+)
+```
+
+### WithUserAgent
+
+Sets a custom User-Agent header for API requests.
+
+```go
+func WithUserAgent(ua string) Option
+```
+
+<ParamField path="ua" type="string" required>
+  The custom User-Agent string. Cannot be empty.
+</ParamField>
+
+**Example:**
+
+```go
+client, err := linkvite.NewClient(
+    "link_your-api-key",
+    linkvite.WithUserAgent("MyApp/2.0 (contact@example.com)"),
+)
+```
+
+### WithAPIKey
+
+Configures API key authentication.
+
+```go
+func WithAPIKey(apiKey string) Option
+```
+
+<ParamField path="apiKey" type="string" required>
+  The API key. Must start with `link_`. Cannot be empty.
+</ParamField>
+
+**Example:**
+
+```go
+client, err := linkvite.NewClient(
+    "",
+    linkvite.WithAPIKey("link_your-api-key"),
+)
+```
+
+### WithAccessToken
+
+Configures access token authentication.
+
+```go
+func WithAccessToken(token string) Option
+```
+
+<ParamField path="token" type="string" required>
+  The OAuth access token. Cannot be empty.
+</ParamField>
+
+**Example:**
+
+```go
+client, err := linkvite.NewClient(
+    "",
+    linkvite.WithAccessToken("your-access-token"),
+)
+```
+
+### WithRefreshToken
+
+Sets the refresh token for token refresh operations.
+
+```go
+func WithRefreshToken(token string) Option
+```
+
+<ParamField path="token" type="string" required>
+  The OAuth refresh token. Cannot be empty.
+</ParamField>
+
+**Example:**
+
+```go
+client, err := linkvite.NewClient(
+    "",
+    linkvite.WithAccessToken("your-access-token"),
+    linkvite.WithRefreshToken("your-refresh-token"),
+)
+```
+
+### WithTokens
+
+Configures both access token and refresh token authentication in a single option.
+
+```go
+func WithTokens(accessToken, refreshToken string) Option
+```
+
+<ParamField path="accessToken" type="string" required>
+  The OAuth access token. Cannot be empty.
+</ParamField>
+
+<ParamField path="refreshToken" type="string">
+  The OAuth refresh token. Optional, but recommended for automatic token refresh.
+</ParamField>
+
+**Example:**
+
+```go
+client, err := linkvite.NewClient(
+    "",
+    linkvite.WithTokens("your-access-token", "your-refresh-token"),
+)
+```
+
+## Complete Examples
+
+### API Key Authentication
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+    
+    "github.com/henryweng03/linkvite-go"
+)
+
+func main() {
+    client, err := linkvite.NewClient("link_your-api-key")
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    user, err := client.User.Get(context.Background())
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    log.Printf("Authenticated as: %s", user.Name)
+}
+```
+
+### Credential-Based Authentication
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+    
+    "github.com/henryweng03/linkvite-go"
+)
+
+func main() {
+    ctx := context.Background()
+    
+    client, err := linkvite.NewClientWithCredentials(
+        ctx,
+        "user@example.com",
+        "your-password",
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    user, err := client.User.Get(ctx)
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    log.Printf("Logged in as: %s", user.Username)
+}
+```
+
+### Token-Based Authentication with Refresh
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+    
+    "github.com/henryweng03/linkvite-go"
+)
+
+func main() {
+    ctx := context.Background()
+    
+    // Login to get tokens
+    result, err := linkvite.Login(ctx, "user@example.com", "password")
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    // Create client with tokens
+    client, err := linkvite.NewClientWithTokens(
+        result.AccessToken,
+        result.RefreshToken,
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    // Use the client
+    bookmarks, err := client.Bookmarks.List(ctx, nil)
+    if err != nil {
+        // If token expired, refresh it
+        if err := client.RefreshAccessToken(ctx); err != nil {
+            log.Fatal(err)
+        }
+        
+        // Retry the request
+        bookmarks, err = client.Bookmarks.List(ctx, nil)
+        if err != nil {
+            log.Fatal(err)
+        }
+    }
+    
+    log.Printf("Found %d bookmarks", len(bookmarks.Items))
+}
+```
+
+### Custom Configuration
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+    "net/http"
+    "time"
+    
+    "github.com/henryweng03/linkvite-go"
+)
+
+func main() {
+    // Create custom HTTP client with specific timeout
+    httpClient := &http.Client{
+        Timeout: 60 * time.Second,
+    }
+    
+    client, err := linkvite.NewClient(
+        "link_your-api-key",
+        linkvite.WithHTTPClient(httpClient),
+        linkvite.WithUserAgent("MyBookmarkApp/1.0"),
+        linkvite.WithBaseURL("https://api.linkvite.io"),
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    ctx := context.Background()
+    user, err := client.User.Get(ctx)
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    log.Printf("Connected as: %s", user.Email)
+}
+```

@@ -1,0 +1,403 @@
+---
+title: API key authentication
+description: Create and manage API keys for server-side applications
+---
+
+API keys provide a simple, long-lived authentication method ideal for server-side applications, scripts, and background jobs. Unlike access tokens, API keys don't expire and don't require refresh logic.
+
+## Creating a client with API keys
+
+The primary way to authenticate with an API key is through the `NewClient` function:
+
+```go linkvite.go
+func NewClient(apiKey string, opts ...Option) (*Client, error)
+```
+
+<CodeGroup>
+```go Basic usage
+import (
+    "context"
+    "log"
+    
+    linkvite "github.com/linkvite/go"
+)
+
+func main() {
+    client, err := linkvite.NewClient("link_your-api-key")
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    ctx := context.Background()
+    user, err := client.User.Get(ctx)
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    log.Printf("Authenticated as: %s", user.Name)
+}
+```
+
+```go With configuration
+client, err := linkvite.NewClient("link_your-api-key",
+    linkvite.WithBaseURL("https://custom.api.url"),
+    linkvite.WithHTTPClient(&http.Client{
+        Timeout: 60 * time.Second,
+    }),
+    linkvite.WithUserAgent("my-app/1.0"),
+)
+```
+
+```go From environment
+import "os"
+
+apiKey := os.Getenv("LINKVITE_API_KEY")
+if apiKey == "" {
+    log.Fatal("LINKVITE_API_KEY not set")
+}
+
+client, err := linkvite.NewClient(apiKey)
+```
+</CodeGroup>
+
+<Note>
+API keys must start with the prefix `link_`. The SDK validates this format and returns an error for invalid keys.
+</Note>
+
+## API key format
+
+All Linkvite API keys follow this format:
+
+```
+link_<random-string>
+```
+
+The SDK enforces this format during client creation:
+
+```go linkvite.go
+if !strings.HasPrefix(k, "link_") {
+    return fmt.Errorf("linkvite: invalid apiKey format")
+}
+```
+
+## How API keys work
+
+When you create a client with an API key, the SDK:
+
+1. Validates the key format
+2. Sets the authentication type to `AuthTypeAPIKey`
+3. Includes the key in all API requests via the `x-api-key` header
+
+```go linkvite.go
+switch c.authType {
+case AuthTypeAPIKey:
+    req.Header.Set("x-api-key", c.apiKey)
+case AuthTypeAccessToken:
+    req.Header.Set("Authorization", "Bearer "+c.accessToken)
+}
+```
+
+API keys are sent with every request, providing persistent authentication without expiration.
+
+## Managing API keys
+
+The SDK provides methods to create, list, and manage your API keys through the `APIKeys` service.
+
+### List API keys
+
+Retrieve all API keys for your account:
+
+```go api_keys.go
+func (s *APIKeysService) List(ctx context.Context) ([]*APIKey, error)
+```
+
+```go Usage example
+keys, err := client.APIKeys.List(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+
+for _, key := range keys {
+    fmt.Printf("Key: %s (prefix: %s)\n", key.Name, key.Prefix)
+    fmt.Printf("  Created: %s\n", key.CreatedAt)
+    if key.LastUsedAt != nil {
+        fmt.Printf("  Last used: %s\n", *key.LastUsedAt)
+    }
+}
+```
+
+The `APIKey` type includes:
+- `ID` - Unique identifier
+- `Name` - Human-readable name
+- `Prefix` - Key prefix (e.g., `link_abc`)
+- `Scopes` - Array of permission scopes
+- `LastUsedAt` - Timestamp of last use
+- `CreatedAt` - Creation timestamp
+- `ExpiresAt` - Expiration timestamp (if set)
+
+<Info>
+The full API key is never returned after creation. Only the prefix is shown for security.
+</Info>
+
+### Create a new API key
+
+Create a new API key with specific permissions:
+
+```go api_keys.go
+func (s *APIKeysService) Create(ctx context.Context, input *CreateAPIKeyInput) (*CreateAPIKeyResult, error)
+```
+
+```go README.md
+result, err := client.APIKeys.Create(ctx, &linkvite.CreateAPIKeyInput{
+    Name:   "My API Key",
+    Scopes: []string{"read", "write"},
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+// Store this securely - it's only shown once!
+fmt.Printf("API Key: %s\n", result.Key)
+fmt.Printf("Key ID: %s\n", result.ID)
+```
+
+<Warning>
+The `result.Key` field contains the full API key and is **only available during creation**. Store it securely - you won't be able to retrieve it again.
+</Warning>
+
+The `CreateAPIKeyInput` accepts:
+- `Name` - A descriptive name for the key (required)
+- `Scopes` - Array of permission scopes (optional)
+
+The `CreateAPIKeyResult` includes:
+- All `APIKey` fields
+- `Key` - The full API key (only available once)
+
+### Update an API key
+
+Edit an existing API key's name or scopes:
+
+```go api_keys.go
+func (s *APIKeysService) Edit(ctx context.Context, id string, input *EditAPIKeyInput) (*APIKey, error)
+```
+
+```go README.md
+key, err := client.APIKeys.Edit(ctx, "key_abc123", &linkvite.EditAPIKeyInput{
+    Name: "Updated Name",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Updated: %s\n", key.Name)
+```
+
+The `EditAPIKeyInput` accepts:
+- `Name` - New name for the key (optional)
+- `Scopes` - New array of permission scopes (optional)
+
+<Note>
+Updating an API key doesn't change the key value itself, only its metadata.
+</Note>
+
+## API key scopes
+
+API keys can be restricted to specific permissions using scopes. Common scopes include:
+
+- `read` - Read-only access to resources
+- `write` - Create and update resources
+- `delete` - Delete resources
+
+```go Scoped API key
+result, err := client.APIKeys.Create(ctx, &linkvite.CreateAPIKeyInput{
+    Name:   "Read-only Key",
+    Scopes: []string{"read"},
+})
+```
+
+Leave scopes empty or omit the field to grant full access:
+
+```go Full access
+result, err := client.APIKeys.Create(ctx, &linkvite.CreateAPIKeyInput{
+    Name: "Full Access Key",
+})
+```
+
+## Security best practices
+
+Follow these guidelines to keep your API keys secure:
+
+<Steps>
+  <Step title="Store keys securely">
+    Never commit API keys to version control. Use environment variables or secret management systems:
+    
+    ```go
+    apiKey := os.Getenv("LINKVITE_API_KEY")
+    if apiKey == "" {
+        log.Fatal("LINKVITE_API_KEY environment variable not set")
+    }
+    
+    client, err := linkvite.NewClient(apiKey)
+    ```
+  </Step>
+  
+  <Step title="Use separate keys per environment">
+    Create different API keys for development, staging, and production:
+    
+    ```go
+    var apiKey string
+    switch os.Getenv("ENV") {
+    case "production":
+        apiKey = os.Getenv("LINKVITE_API_KEY_PROD")
+    case "staging":
+        apiKey = os.Getenv("LINKVITE_API_KEY_STAGING")
+    default:
+        apiKey = os.Getenv("LINKVITE_API_KEY_DEV")
+    }
+    ```
+  </Step>
+  
+  <Step title="Apply principle of least privilege">
+    Create API keys with minimal required scopes:
+    
+    ```go
+    // For a read-only monitoring service
+    result, err := client.APIKeys.Create(ctx, &linkvite.CreateAPIKeyInput{
+        Name:   "Monitoring Service",
+        Scopes: []string{"read"},
+    })
+    ```
+  </Step>
+  
+  <Step title="Rotate keys regularly">
+    Periodically create new keys and revoke old ones:
+    
+    ```go
+    // Create new key
+    newKey, err := client.APIKeys.Create(ctx, &linkvite.CreateAPIKeyInput{
+        Name: "Production Key (2026-03)",
+    })
+    
+    // Update your application to use newKey.Key
+    
+    // After deployment, delete the old key
+    err = client.APIKeys.Delete(ctx, "old_key_id")
+    ```
+  </Step>
+  
+  <Step title="Monitor key usage">
+    Regularly check the `LastUsedAt` field to detect unused or compromised keys:
+    
+    ```go
+    keys, err := client.APIKeys.List(ctx)
+    for _, key := range keys {
+        if key.LastUsedAt == nil {
+            fmt.Printf("Warning: Key %s never used\n", key.Name)
+        } else if time.Since(*key.LastUsedAt) > 90*24*time.Hour {
+            fmt.Printf("Warning: Key %s unused for 90 days\n", key.Name)
+        }
+    }
+    ```
+  </Step>
+</Steps>
+
+## Error handling
+
+Handle API key authentication errors appropriately:
+
+```go Error handling
+client, err := linkvite.NewClient(apiKey)
+if err != nil {
+    log.Fatalf("Failed to create client: %v", err)
+}
+
+user, err := client.User.Get(ctx)
+if err != nil {
+    if apiErr, ok := err.(*linkvite.Error); ok {
+        if apiErr.IsUnauthorized() {
+            log.Fatal("Invalid API key")
+        } else if apiErr.IsForbidden() {
+            log.Fatal("API key lacks required permissions")
+        }
+    }
+    log.Fatal(err)
+}
+```
+
+Common API key errors:
+- `Invalid API key format` - Key doesn't start with `link_`
+- `401 Unauthorized` - Invalid or revoked API key
+- `403 Forbidden` - API key lacks required scope
+
+## Using API keys in production
+
+Here's a complete example for a production application:
+
+```go Production example
+package main
+
+import (
+    "context"
+    "log"
+    "os"
+    "time"
+    
+    linkvite "github.com/linkvite/go"
+)
+
+func main() {
+    // Load API key from environment
+    apiKey := os.Getenv("LINKVITE_API_KEY")
+    if apiKey == "" {
+        log.Fatal("LINKVITE_API_KEY environment variable required")
+    }
+    
+    // Create client with custom HTTP client
+    httpClient := &http.Client{
+        Timeout: 30 * time.Second,
+    }
+    
+    client, err := linkvite.NewClient(apiKey,
+        linkvite.WithHTTPClient(httpClient),
+        linkvite.WithUserAgent("my-service/1.0"),
+    )
+    if err != nil {
+        log.Fatalf("Failed to create client: %v", err)
+    }
+    
+    ctx := context.Background()
+    
+    // Verify authentication
+    user, err := client.User.Get(ctx)
+    if err != nil {
+        log.Fatalf("Authentication failed: %v", err)
+    }
+    
+    log.Printf("Authenticated as: %s", user.Name)
+    
+    // Your application logic here
+}
+```
+
+## When to use API keys
+
+API keys are the best choice when:
+
+- Building server-side applications
+- Creating background jobs or scheduled tasks
+- Developing CLI tools or automation scripts
+- You need simple, long-lived authentication
+- You don't need user-specific sessions
+
+For user-specific authentication or web applications, consider using [access tokens](/authentication/access-tokens) instead.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Access tokens" icon="ticket" href="/authentication/access-tokens">
+    Learn about token-based authentication and refresh flows
+  </Card>
+  <Card title="User service" icon="user" href="/api/user">
+    Explore user-related API operations
+  </Card>
+</CardGroup>

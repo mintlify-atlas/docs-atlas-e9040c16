@@ -1,0 +1,377 @@
+---
+title: 'Invites Service'
+description: 'Complete API reference for collection invite operations'
+---
+
+The `InvitesService` handles operations for managing collection invites, including accepting and declining invitations.
+
+## Accessing the Service
+
+```go
+client := linkvite.NewClient("your-api-key")
+invites := client.Invites
+```
+
+## List and Retrieve Operations
+
+### List
+
+Retrieves all pending invites for the current user.
+
+```go
+func (s *InvitesService) List(ctx context.Context) ([]*InviteWithMeta, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ResponseField name="invites" type="[]*InviteWithMeta">
+  Array of invites with collection and inviter information
+</ResponseField>
+
+**Example**
+
+```go
+invites, err := client.Invites.List(context.Background())
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("You have %d pending invites\n\n", len(invites))
+for i, invite := range invites {
+    fmt.Printf("%d. %s\n", i+1, invite.CollectionName)
+    fmt.Printf("   From: %s (@%s)\n", invite.InviterName, invite.InviterUsername)
+    fmt.Printf("   Role: %s\n", invite.Role)
+    fmt.Printf("   Date: %s\n\n", invite.CreatedAt.Format("Jan 2, 2006"))
+}
+```
+
+### Get
+
+Retrieves a single invite by ID.
+
+```go
+func (s *InvitesService) Get(ctx context.Context, id string) (*InviteWithMeta, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Invite ID
+</ParamField>
+
+<ResponseField name="invite" type="*InviteWithMeta">
+  The invite with metadata
+</ResponseField>
+
+**Example**
+
+```go
+invite, err := client.Invites.Get(context.Background(), "invite-123")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Invite to: %s\n", invite.CollectionName)
+fmt.Printf("From: %s\n", invite.InviterName)
+fmt.Printf("As: %s\n", invite.Role)
+```
+
+## Accept Operations
+
+### Accept
+
+Accepts an invite to join a collection.
+
+```go
+func (s *InvitesService) Accept(ctx context.Context, id string) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Invite ID to accept
+</ParamField>
+
+**Example**
+
+```go
+err := client.Invites.Accept(context.Background(), "invite-123")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Invite accepted! You are now a member of the collection.")
+```
+
+### BatchAccept
+
+Accepts multiple invites at once.
+
+```go
+func (s *InvitesService) BatchAccept(ctx context.Context, input *BatchInviteInput) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="*BatchInviteInput" required>
+  <Expandable title="BatchInviteInput fields">
+    <ParamField path="Invites" type="[]string" required>
+      Array of invite IDs to accept
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Example**
+
+```go
+err := client.Invites.BatchAccept(context.Background(), &linkvite.BatchInviteInput{
+    Invites: []string{"invite-1", "invite-2", "invite-3"},
+})
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("All invites accepted")
+```
+
+## Decline Operations
+
+### Decline
+
+Declines an invite to join a collection.
+
+```go
+func (s *InvitesService) Decline(ctx context.Context, id string) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="id" type="string" required>
+  Invite ID to decline
+</ParamField>
+
+**Example**
+
+```go
+err := client.Invites.Decline(context.Background(), "invite-123")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Invite declined")
+```
+
+### BatchDecline
+
+Declines multiple invites at once.
+
+```go
+func (s *InvitesService) BatchDecline(ctx context.Context, input *BatchInviteInput) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="*BatchInviteInput" required>
+  <Expandable title="BatchInviteInput fields">
+    <ParamField path="Invites" type="[]string" required>
+      Array of invite IDs to decline
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Example**
+
+```go
+err := client.Invites.BatchDecline(context.Background(), &linkvite.BatchInviteInput{
+    Invites: []string{"invite-1", "invite-2", "invite-3"},
+})
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("All invites declined")
+```
+
+### DeclineAll
+
+Declines all pending invites for the current user.
+
+```go
+func (s *InvitesService) DeclineAll(ctx context.Context) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+**Example**
+
+```go
+err := client.Invites.DeclineAll(context.Background())
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("All pending invites declined")
+```
+
+<Warning>
+  This operation cannot be undone. All pending invites will be declined.
+</Warning>
+
+## Complete Invites Management Example
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "github.com/yourusername/linkvite-go"
+)
+
+func main() {
+    client := linkvite.NewClient("your-api-key")
+    ctx := context.Background()
+
+    // Get all pending invites
+    invites, err := client.Invites.List(ctx)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    if len(invites) == 0 {
+        fmt.Println("No pending invites")
+        return
+    }
+
+    fmt.Printf("You have %d pending invites:\n\n", len(invites))
+
+    var toAccept []string
+    var toDecline []string
+
+    // Process invites
+    for _, invite := range invites {
+        fmt.Printf("Collection: %s\n", invite.CollectionName)
+        fmt.Printf("From: %s (@%s)\n", invite.InviterName, invite.InviterUsername)
+        fmt.Printf("Role: %s\n", invite.Role)
+        fmt.Printf("Date: %s\n\n", invite.CreatedAt.Format("Jan 2, 2006"))
+
+        // Example logic: accept admin invites, decline viewer invites
+        if invite.Role == linkvite.RoleLevelAdmin {
+            toAccept = append(toAccept, invite.ID)
+        } else {
+            toDecline = append(toDecline, invite.ID)
+        }
+    }
+
+    // Batch accept admin invites
+    if len(toAccept) > 0 {
+        err = client.Invites.BatchAccept(ctx, &linkvite.BatchInviteInput{
+            Invites: toAccept,
+        })
+        if err != nil {
+            log.Printf("Failed to accept invites: %v", err)
+        } else {
+            fmt.Printf("Accepted %d admin invites\n", len(toAccept))
+        }
+    }
+
+    // Batch decline viewer invites
+    if len(toDecline) > 0 {
+        err = client.Invites.BatchDecline(ctx, &linkvite.BatchInviteInput{
+            Invites: toDecline,
+        })
+        if err != nil {
+            log.Printf("Failed to decline invites: %v", err)
+        } else {
+            fmt.Printf("Declined %d viewer invites\n", len(toDecline))
+        }
+    }
+}
+```
+
+## Selective Invite Processing
+
+```go
+// Accept invites from specific users
+invites, err := client.Invites.List(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+
+trustedUsers := map[string]bool{
+    "user-123": true,
+    "user-456": true,
+}
+
+for _, invite := range invites {
+    if trustedUsers[invite.InviterID] {
+        err := client.Invites.Accept(ctx, invite.ID)
+        if err != nil {
+            log.Printf("Failed to accept invite: %v", err)
+        } else {
+            fmt.Printf("Accepted invite to %s\n", invite.CollectionName)
+        }
+    }
+}
+```
+
+## Invite Notification Example
+
+```go
+// Check for new invites and notify user
+func checkNewInvites(client *linkvite.Client) {
+    ctx := context.Background()
+    
+    invites, err := client.Invites.List(ctx)
+    if err != nil {
+        log.Printf("Failed to check invites: %v", err)
+        return
+    }
+
+    if len(invites) == 0 {
+        return
+    }
+
+    fmt.Printf("\n🔔 You have %d new invite(s):\n", len(invites))
+    for _, invite := range invites {
+        fmt.Printf("  • %s invited you to '%s' as %s\n",
+            invite.InviterName,
+            invite.CollectionName,
+            invite.Role,
+        )
+    }
+}
+```
+
+## Error Handling
+
+All methods return an error. Always check for errors:
+
+```go
+invites, err := client.Invites.List(context.Background())
+if err != nil {
+    log.Printf("Failed to get invites: %v", err)
+    return
+}
+
+for _, invite := range invites {
+    fmt.Println(invite.CollectionName)
+}
+```
+
+## Type Reference
+
+For detailed information about types used in this service, see:
+
+- [Invite Types](/api/types#invite)
+- [Role Levels](/api/types#role-level)

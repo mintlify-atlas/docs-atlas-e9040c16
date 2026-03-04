@@ -1,0 +1,351 @@
+---
+title: 'User Service'
+description: 'Complete API reference for user profile and settings operations'
+---
+
+The `UserService` handles operations related to the authenticated user's profile, settings, and storage.
+
+## Accessing the Service
+
+```go
+client := linkvite.NewClient("your-api-key")
+user := client.User
+```
+
+## Profile Operations
+
+### Get
+
+Retrieves the current authenticated user's profile.
+
+```go
+func (s *UserService) Get(ctx context.Context) (*User, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ResponseField name="user" type="*User">
+  The authenticated user's profile information
+</ResponseField>
+
+**Example**
+
+```go
+user, err := client.User.Get(context.Background())
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Name: %s\n", user.Name)
+fmt.Printf("Email: %s\n", user.Email)
+fmt.Printf("Username: @%s\n", user.Username)
+fmt.Printf("Account Type: %s\n", user.AccountType)
+fmt.Printf("Email Verified: %v\n", user.EmailVerified)
+fmt.Printf("Created: %s\n", user.CreatedAt)
+```
+
+### Edit
+
+Updates the current user's profile.
+
+```go
+func (s *UserService) Edit(ctx context.Context, input *EditUserInput) (*User, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="*EditUserInput" required>
+  <Expandable title="EditUserInput fields">
+    <ParamField path="Name" type="*string">
+      New display name
+    </ParamField>
+    <ParamField path="Username" type="*string">
+      New username
+    </ParamField>
+    <ParamField path="Avatar" type="*string">
+      New avatar URL
+    </ParamField>
+    <ParamField path="FolderName" type="*string">
+      Custom folder name for organization
+    </ParamField>
+    <ParamField path="PrivateAccount" type="*bool">
+      Whether the account should be private
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="user" type="*User">
+  The updated user profile
+</ResponseField>
+
+**Example**
+
+```go
+name := "John Doe"
+username := "johndoe"
+privateAccount := true
+
+user, err := client.User.Edit(context.Background(), &linkvite.EditUserInput{
+    Name:           &name,
+    Username:       &username,
+    PrivateAccount: &privateAccount,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Profile updated: %s (@%s)\n", user.Name, user.Username)
+```
+
+## Settings Operations
+
+### EditSettings
+
+Updates the current user's notification settings.
+
+```go
+func (s *UserService) EditSettings(ctx context.Context, input *EditSettingsInput) (*User, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="*EditSettingsInput" required>
+  <Expandable title="EditSettingsInput fields">
+    <ParamField path="PushEnabled" type="*bool">
+      Enable/disable push notifications
+    </ParamField>
+    <ParamField path="EmailEnabled" type="*bool">
+      Enable/disable email notifications
+    </ParamField>
+    <ParamField path="InAppEnabled" type="*bool">
+      Enable/disable in-app notifications
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseField name="user" type="*User">
+  The updated user with new settings
+</ResponseField>
+
+**Example**
+
+```go
+pushEnabled := false
+emailEnabled := true
+inAppEnabled := true
+
+user, err := client.User.EditSettings(context.Background(), &linkvite.EditSettingsInput{
+    PushEnabled:  &pushEnabled,
+    EmailEnabled: &emailEnabled,
+    InAppEnabled: &inAppEnabled,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println("Notification settings updated")
+fmt.Printf("Push: %v | Email: %v | In-App: %v\n",
+    user.PushEnabled,
+    user.EmailEnabled,
+    user.InAppEnabled,
+)
+```
+
+## Storage Operations
+
+### GetStorageUsage
+
+Retrieves the user's storage usage summary.
+
+```go
+func (s *UserService) GetStorageUsage(ctx context.Context) (*StorageUsage, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ResponseField name="storage" type="*StorageUsage">
+  <Expandable title="fields">
+    <ResponseField name="Used" type="float64">
+      Storage used in bytes
+    </ResponseField>
+    <ResponseField name="Total" type="float64">
+      Total storage available in bytes
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example**
+
+```go
+storage, err := client.User.GetStorageUsage(context.Background())
+if err != nil {
+    log.Fatal(err)
+}
+
+usedMB := storage.Used / (1024 * 1024)
+totalMB := storage.Total / (1024 * 1024)
+percentage := (storage.Used / storage.Total) * 100
+
+fmt.Printf("Storage: %.2f MB / %.2f MB (%.1f%%)\n", usedMB, totalMB, percentage)
+```
+
+### GetDetailedStorageUsage
+
+Retrieves detailed storage usage breakdown with paginated bookmark information.
+
+```go
+func (s *UserService) GetDetailedStorageUsage(ctx context.Context, opts *ListOptions) (*ListBookmarksWithStorageResult, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="opts" type="*ListOptions">
+  Pagination options
+</ParamField>
+
+<ResponseField name="result" type="*ListBookmarksWithStorageResult">
+  <Expandable title="fields">
+    <ResponseField name="Bookmarks" type="[]*BookmarkStorage">
+      Array of bookmarks with storage information
+    </ResponseField>
+    <ResponseField name="Pagination" type="*Pagination">
+      Pagination details
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example**
+
+```go
+result, err := client.User.GetDetailedStorageUsage(context.Background(), &linkvite.ListOptions{
+    Page:  1,
+    Limit: 50,
+    Sort:  "size", // Sort by size to see largest bookmarks first
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println("Bookmarks by storage usage:")
+for _, bookmark := range result.Bookmarks {
+    sizeMB := bookmark.Size / (1024 * 1024)
+    fmt.Printf("- %s: %.2f MB\n", bookmark.Title, sizeMB)
+}
+```
+
+## Trash Operations
+
+### EmptyTrash
+
+Permanently deletes all trashed bookmarks.
+
+```go
+func (s *UserService) EmptyTrash(ctx context.Context) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+**Example**
+
+```go
+err := client.User.EmptyTrash(context.Background())
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Trash emptied successfully")
+```
+
+<Warning>
+  This operation is permanent and cannot be undone. All bookmarks in the trash will be permanently deleted.
+</Warning>
+
+## Complete Profile Management Example
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "github.com/yourusername/linkvite-go"
+)
+
+func main() {
+    client := linkvite.NewClient("your-api-key")
+    ctx := context.Background()
+
+    // Get current profile
+    user, err := client.User.Get(ctx)
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("Current user: %s (@%s)\n", user.Name, user.Username)
+
+    // Update profile
+    newName := "Updated Name"
+    user, err = client.User.Edit(ctx, &linkvite.EditUserInput{
+        Name: &newName,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Update notification settings
+    emailEnabled := true
+    user, err = client.User.EditSettings(ctx, &linkvite.EditSettingsInput{
+        EmailEnabled: &emailEnabled,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Check storage
+    storage, err := client.User.GetStorageUsage(ctx)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    percentage := (storage.Used / storage.Total) * 100
+    fmt.Printf("Storage usage: %.1f%%\n", percentage)
+
+    if percentage > 90 {
+        fmt.Println("Warning: Storage almost full!")
+    }
+}
+```
+
+## Error Handling
+
+All methods return an error. Always check for errors:
+
+```go
+user, err := client.User.Get(context.Background())
+if err != nil {
+    log.Printf("Failed to get user: %v", err)
+    return
+}
+
+fmt.Println(user.Name)
+```
+
+## Type Reference
+
+For detailed information about types used in this service, see:
+
+- [User Type](/api/types#user)
+- [Storage Usage](/api/types#storage-usage)
+- [Account Types](/api/types#account-type)
+- [List Options](/api/types#list-options)

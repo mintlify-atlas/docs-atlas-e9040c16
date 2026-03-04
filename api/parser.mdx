@@ -1,0 +1,409 @@
+---
+title: 'Parser Service'
+description: 'Complete API reference for link parsing operations'
+---
+
+The `ParserService` handles operations for parsing URLs to extract metadata and importing parsed links as bookmarks.
+
+## Accessing the Service
+
+```go
+client := linkvite.NewClient("your-api-key")
+parser := client.Parser
+```
+
+## Parse Operations
+
+### ParseLink
+
+Parses a URL and returns its metadata.
+
+```go
+func (s *ParserService) ParseLink(ctx context.Context, linkURL string) (*ParsedLink, error)
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="linkURL" type="string" required>
+  The URL to parse
+</ParamField>
+
+<ResponseField name="parsed" type="*ParsedLink">
+  <Expandable title="ParsedLink fields">
+    <ResponseField name="URL" type="string">
+      The parsed URL
+    </ResponseField>
+    <ResponseField name="Title" type="string">
+      Page title
+    </ResponseField>
+    <ResponseField name="Description" type="string">
+      Page description
+    </ResponseField>
+    <ResponseField name="Image" type="string">
+      Preview image URL
+    </ResponseField>
+    <ResponseField name="Favicon" type="string">
+      Site favicon URL
+    </ResponseField>
+    <ResponseField name="Type" type="string">
+      Content type (e.g., "article", "website")
+    </ResponseField>
+    <ResponseField name="SiteName" type="string">
+      Name of the website
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example**
+
+```go
+parsed, err := client.Parser.ParseLink(context.Background(), "https://golang.org")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Title: %s\n", parsed.Title)
+fmt.Printf("Description: %s\n", parsed.Description)
+fmt.Printf("Site: %s\n", parsed.SiteName)
+fmt.Printf("Type: %s\n", parsed.Type)
+fmt.Printf("Image: %s\n", parsed.Image)
+fmt.Printf("Favicon: %s\n", parsed.Favicon)
+```
+
+## Import Operations
+
+### Import
+
+Imports parsed items as bookmarks.
+
+```go
+func (s *ParserService) Import(ctx context.Context, input *ImportParsedItemsInput) error
+```
+
+<ParamField path="ctx" type="context.Context" required>
+  Context for the request
+</ParamField>
+
+<ParamField path="input" type="*ImportParsedItemsInput" required>
+  <Expandable title="ImportParsedItemsInput fields">
+    <ParamField path="Items" type="[]ParsedLink" required>
+      Array of parsed links to import
+    </ParamField>
+    <ParamField path="Collection" type="string">
+      Optional collection ID to add bookmarks to
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Example**
+
+```go
+// Parse multiple URLs
+urls := []string{
+    "https://golang.org",
+    "https://github.com",
+    "https://stackoverflow.com",
+}
+
+var parsedLinks []linkvite.ParsedLink
+
+for _, url := range urls {
+    parsed, err := client.Parser.ParseLink(context.Background(), url)
+    if err != nil {
+        log.Printf("Failed to parse %s: %v", url, err)
+        continue
+    }
+    parsedLinks = append(parsedLinks, *parsed)
+}
+
+// Import all parsed links
+err := client.Parser.Import(context.Background(), &linkvite.ImportParsedItemsInput{
+    Items:      parsedLinks,
+    Collection: "imported-links",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Successfully imported %d bookmarks\n", len(parsedLinks))
+```
+
+## Complete Parsing and Import Example
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "github.com/yourusername/linkvite-go"
+)
+
+func main() {
+    client := linkvite.NewClient("your-api-key")
+    ctx := context.Background()
+
+    // List of URLs to import
+    urls := []string{
+        "https://blog.golang.org/",
+        "https://go.dev/doc/",
+        "https://pkg.go.dev/",
+    }
+
+    fmt.Println("Parsing URLs...\n")
+
+    var parsedLinks []linkvite.ParsedLink
+
+    // Parse each URL
+    for i, url := range urls {
+        fmt.Printf("%d. Parsing: %s\n", i+1, url)
+        
+        parsed, err := client.Parser.ParseLink(ctx, url)
+        if err != nil {
+            log.Printf("   Error: %v\n", err)
+            continue
+        }
+
+        fmt.Printf("   Title: %s\n", parsed.Title)
+        fmt.Printf("   Site: %s\n\n", parsed.SiteName)
+        
+        parsedLinks = append(parsedLinks, *parsed)
+    }
+
+    if len(parsedLinks) == 0 {
+        fmt.Println("No links to import")
+        return
+    }
+
+    // Create a collection for imported links
+    collection, err := client.Collections.Create(ctx, &linkvite.CreateCollectionInput{
+        Name:        "Go Programming Resources",
+        Description: "Automatically imported Go-related links",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("Created collection: %s\n\n", collection.Name)
+
+    // Import parsed links
+    fmt.Printf("Importing %d bookmarks...\n", len(parsedLinks))
+    err = client.Parser.Import(ctx, &linkvite.ImportParsedItemsInput{
+        Items:      parsedLinks,
+        Collection: collection.ID,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Println("Import complete!")
+}
+```
+
+## URL Validation Example
+
+```go
+import (
+    "net/url"
+    "strings"
+)
+
+func isValidURL(urlStr string) bool {
+    // Basic validation
+    if !strings.HasPrefix(urlStr, "http://") && !strings.HasPrefix(urlStr, "https://") {
+        return false
+    }
+    
+    _, err := url.Parse(urlStr)
+    return err == nil
+}
+
+func parseWithValidation(client *linkvite.Client, urlStr string) (*linkvite.ParsedLink, error) {
+    if !isValidURL(urlStr) {
+        return nil, fmt.Errorf("invalid URL: %s", urlStr)
+    }
+    
+    return client.Parser.ParseLink(context.Background(), urlStr)
+}
+```
+
+## Batch Parsing with Progress
+
+```go
+func parseURLsWithProgress(client *linkvite.Client, urls []string) []linkvite.ParsedLink {
+    ctx := context.Background()
+    var parsedLinks []linkvite.ParsedLink
+    
+    total := len(urls)
+    
+    for i, url := range urls {
+        fmt.Printf("\rParsing... %d/%d", i+1, total)
+        
+        parsed, err := client.Parser.ParseLink(ctx, url)
+        if err != nil {
+            log.Printf("\nFailed to parse %s: %v", url, err)
+            continue
+        }
+        
+        parsedLinks = append(parsedLinks, *parsed)
+    }
+    
+    fmt.Printf("\rCompleted: %d/%d\n", len(parsedLinks), total)
+    return parsedLinks
+}
+```
+
+## Error Handling with Retries
+
+```go
+import "time"
+
+func parseWithRetry(client *linkvite.Client, url string, maxRetries int) (*linkvite.ParsedLink, error) {
+    ctx := context.Background()
+    
+    for attempt := 1; attempt <= maxRetries; attempt++ {
+        parsed, err := client.Parser.ParseLink(ctx, url)
+        if err == nil {
+            return parsed, nil
+        }
+        
+        if attempt < maxRetries {
+            waitTime := time.Duration(attempt) * time.Second
+            fmt.Printf("Attempt %d failed, retrying in %v...\n", attempt, waitTime)
+            time.Sleep(waitTime)
+        }
+    }
+    
+    return nil, fmt.Errorf("failed to parse after %d attempts", maxRetries)
+}
+```
+
+## Import from File Example
+
+```go
+import (
+    "bufio"
+    "os"
+)
+
+func importFromFile(client *linkvite.Client, filename string, collectionID string) error {
+    file, err := os.Open(filename)
+    if err != nil {
+        return err
+    }
+    defer file.Close()
+
+    ctx := context.Background()
+    scanner := bufio.NewScanner(file)
+    var parsedLinks []linkvite.ParsedLink
+
+    fmt.Println("Reading URLs from file...")
+    
+    for scanner.Scan() {
+        url := scanner.Text()
+        if url == "" {
+            continue
+        }
+
+        parsed, err := client.Parser.ParseLink(ctx, url)
+        if err != nil {
+            log.Printf("Failed to parse %s: %v", url, err)
+            continue
+        }
+
+        parsedLinks = append(parsedLinks, *parsed)
+        fmt.Printf("  Parsed: %s\n", parsed.Title)
+    }
+
+    if err := scanner.Err(); err != nil {
+        return err
+    }
+
+    if len(parsedLinks) == 0 {
+        return fmt.Errorf("no valid URLs found in file")
+    }
+
+    fmt.Printf("\nImporting %d bookmarks...\n", len(parsedLinks))
+    return client.Parser.Import(ctx, &linkvite.ImportParsedItemsInput{
+        Items:      parsedLinks,
+        Collection: collectionID,
+    })
+}
+
+// Usage:
+// err := importFromFile(client, "urls.txt", "my-collection-id")
+```
+
+## Preview Before Import
+
+```go
+func previewAndImport(client *linkvite.Client, urls []string) {
+    ctx := context.Background()
+    var parsedLinks []linkvite.ParsedLink
+
+    // Parse all URLs
+    for _, url := range urls {
+        parsed, err := client.Parser.ParseLink(ctx, url)
+        if err != nil {
+            log.Printf("Failed: %s\n", url)
+            continue
+        }
+        parsedLinks = append(parsedLinks, *parsed)
+    }
+
+    // Show preview
+    fmt.Println("\n=== Preview ===")
+    for i, link := range parsedLinks {
+        fmt.Printf("%d. %s\n", i+1, link.Title)
+        fmt.Printf("   %s\n", link.URL)
+        fmt.Printf("   %s\n\n", link.Description[:min(len(link.Description), 100)])
+    }
+
+    // Confirm import
+    fmt.Print("Import these bookmarks? (y/n): ")
+    var response string
+    fmt.Scanln(&response)
+
+    if strings.ToLower(response) == "y" {
+        err := client.Parser.Import(ctx, &linkvite.ImportParsedItemsInput{
+            Items: parsedLinks,
+        })
+        if err != nil {
+            log.Fatal(err)
+        }
+        fmt.Println("Import successful!")
+    } else {
+        fmt.Println("Import cancelled")
+    }
+}
+
+func min(a, b int) int {
+    if a < b {
+        return a
+    }
+    return b
+}
+```
+
+## Error Handling
+
+All methods return an error. Always check for errors:
+
+```go
+parsed, err := client.Parser.ParseLink(context.Background(), "https://example.com")
+if err != nil {
+    log.Printf("Failed to parse URL: %v", err)
+    return
+}
+
+fmt.Println(parsed.Title)
+```
+
+## Type Reference
+
+For detailed information about types used in this service, see:
+
+- [Parsed Link Types](/api/types#parsed-link)

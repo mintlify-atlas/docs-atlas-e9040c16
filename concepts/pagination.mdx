@@ -1,0 +1,343 @@
+---
+title: Pagination
+description: Learn how to work with paginated API responses in the Linkvite Go SDK
+---
+
+Many list operations in the Linkvite API return paginated results. The SDK provides the `ListOptions` type and `Pagination` metadata to help you navigate through large datasets efficiently.
+
+## ListOptions type
+
+The `ListOptions` struct configures pagination and filtering for list operations:
+
+```go types.go
+type ListOptions struct {
+    Page   int64
+    Limit  int64
+    Query  string
+    Status string
+    Sort   string
+}
+```
+
+### Fields
+
+- **Page**: The page number to retrieve (1-based)
+- **Limit**: Number of items per page
+- **Query**: Search query string
+- **Status**: Filter by status (e.g., "active", "trashed")
+- **Sort**: Sort order for results
+
+## Pagination metadata
+
+API responses include pagination information:
+
+```go types.go
+type Pagination struct {
+    Query    string `json:"q,omitempty"`
+    Total    int64  `json:"total"`
+    Page     int64  `json:"page"`
+    Limit    int64  `json:"limit"`
+    LastPage int64  `json:"last_page"`
+}
+```
+
+The `Pagination` struct contains:
+
+- **Query**: The search query that was applied
+- **Total**: Total number of items across all pages
+- **Page**: Current page number
+- **Limit**: Number of items per page
+- **LastPage**: The last page number available
+
+## Basic pagination
+
+Retrieve the first page of results:
+
+```go
+bookmarks, err := client.Bookmarks.List(ctx, &linkvite.ListOptions{
+    Page:  1,
+    Limit: 20,
+})
+if err != nil {
+    return err
+}
+
+fmt.Printf("Total bookmarks: %d\n", bookmarks.Pagination.Total)
+fmt.Printf("Current page: %d of %d\n", 
+    bookmarks.Pagination.Page, 
+    bookmarks.Pagination.LastPage,
+)
+```
+
+## Iterating through pages
+
+Loop through all pages to retrieve complete datasets:
+
+```go
+func getAllBookmarks(ctx context.Context, client *linkvite.Client) ([]*linkvite.BookmarkWithMeta, error) {
+    var allBookmarks []*linkvite.BookmarkWithMeta
+    page := int64(1)
+    
+    for {
+        result, err := client.Bookmarks.List(ctx, &linkvite.ListOptions{
+            Page:  page,
+            Limit: 50,
+        })
+        if err != nil {
+            return nil, err
+        }
+        
+        allBookmarks = append(allBookmarks, result.Bookmarks...)
+        
+        // Check if we've reached the last page
+        if page >= result.Pagination.LastPage {
+            break
+        }
+        
+        page++
+    }
+    
+    return allBookmarks, nil
+}
+```
+
+## Filtering results
+
+Use the `Query` and `Status` fields to filter results:
+
+```go
+// Search for bookmarks
+bookmarks, err := client.Bookmarks.List(ctx, &linkvite.ListOptions{
+    Page:  1,
+    Limit: 20,
+    Query: "golang",
+})
+
+// Filter by status
+trashedBookmarks, err := client.Bookmarks.List(ctx, &linkvite.ListOptions{
+    Page:   1,
+    Limit:  20,
+    Status: string(linkvite.BookmarkStatusTrashed),
+})
+```
+
+## Sorting results
+
+Control the sort order using the `Sort` field:
+
+```go
+bookmarks, err := client.Bookmarks.List(ctx, &linkvite.ListOptions{
+    Page:  1,
+    Limit: 20,
+    Sort:  "created_at:desc",
+})
+```
+
+## Paginated response structure
+
+List operations return a result struct with both data and pagination metadata:
+
+```go bookmarks.go
+type ListBookmarksResult struct {
+    Bookmarks  []*BookmarkWithMeta `json:"bookmarks"`
+    Pagination *Pagination         `json:"pagination"`
+}
+```
+
+Access the results:
+
+```go
+result, err := client.Bookmarks.List(ctx, &linkvite.ListOptions{
+    Page:  1,
+    Limit: 20,
+})
+if err != nil {
+    return err
+}
+
+// Access bookmarks
+for _, bookmark := range result.Bookmarks {
+    fmt.Printf("%s: %s\n", bookmark.Title, bookmark.URL)
+}
+
+// Access pagination metadata
+fmt.Printf("Page %d of %d (Total: %d)\n",
+    result.Pagination.Page,
+    result.Pagination.LastPage,
+    result.Pagination.Total,
+)
+```
+
+## Pagination with collections
+
+Pagination works the same way for collections:
+
+```go
+result, err := client.Bookmarks.ListByCollection(ctx, collectionID, &linkvite.ListOptions{
+    Page:  1,
+    Limit: 30,
+})
+if err != nil {
+    return err
+}
+
+fmt.Printf("Found %d bookmarks in collection\n", result.Pagination.Total)
+```
+
+## Complete pagination example
+
+Here's a comprehensive example that demonstrates pagination with error handling:
+
+```go
+func fetchRecentBookmarks(ctx context.Context, client *linkvite.Client) error {
+    opts := &linkvite.ListOptions{
+        Page:  1,
+        Limit: 25,
+        Sort:  "created_at:desc",
+    }
+    
+    for {
+        result, err := client.Bookmarks.List(ctx, opts)
+        if err != nil {
+            return fmt.Errorf("failed to fetch bookmarks: %w", err)
+        }
+        
+        // Process current page
+        for _, bookmark := range result.Bookmarks {
+            fmt.Printf("[%s] %s\n", bookmark.CreatedAt.Format("2006-01-02"), bookmark.Title)
+        }
+        
+        // Display pagination status
+        fmt.Printf("\nPage %d of %d (Total: %d bookmarks)\n\n",
+            result.Pagination.Page,
+            result.Pagination.LastPage,
+            result.Pagination.Total,
+        )
+        
+        // Check if there are more pages
+        if result.Pagination.Page >= result.Pagination.LastPage {
+            fmt.Println("Reached the last page")
+            break
+        }
+        
+        // Move to next page
+        opts.Page++
+        
+        // Optional: Add a small delay between requests
+        time.Sleep(100 * time.Millisecond)
+    }
+    
+    return nil
+}
+```
+
+## Pagination with context and cancellation
+
+Use context to allow cancellation during pagination:
+
+```go
+func fetchBookmarksWithCancel(ctx context.Context, client *linkvite.Client) error {
+    page := int64(1)
+    
+    for {
+        // Check if context was cancelled
+        select {
+        case <-ctx.Done():
+            return ctx.Err()
+        default:
+        }
+        
+        result, err := client.Bookmarks.List(ctx, &linkvite.ListOptions{
+            Page:  page,
+            Limit: 50,
+        })
+        if err != nil {
+            return err
+        }
+        
+        // Process bookmarks
+        for _, bookmark := range result.Bookmarks {
+            fmt.Printf("%s\n", bookmark.Title)
+        }
+        
+        if page >= result.Pagination.LastPage {
+            break
+        }
+        
+        page++
+    }
+    
+    return nil
+}
+
+// Usage with timeout
+ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+defer cancel()
+
+err := fetchBookmarksWithCancel(ctx, client)
+```
+
+## Best practices
+
+<AccordionGroup>
+  <Accordion title="Use appropriate page sizes">
+    Balance between number of requests and response size. Typically 20-50 items per page works well.
+
+    ```go
+    // Good for most use cases
+    opts := &linkvite.ListOptions{
+        Page:  1,
+        Limit: 25,
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Check pagination metadata">
+    Always check `LastPage` to avoid unnecessary requests beyond available data.
+
+    ```go
+    if result.Pagination.Page >= result.Pagination.LastPage {
+        break
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Handle empty results">
+    Check if the bookmarks slice is empty before processing.
+
+    ```go
+    if len(result.Bookmarks) == 0 {
+        fmt.Println("No bookmarks found")
+        return nil
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Add delays for large datasets">
+    When fetching many pages, add small delays to avoid rate limiting.
+
+    ```go
+    for page := int64(1); page <= lastPage; page++ {
+        result, err := client.Bookmarks.List(ctx, opts)
+        // Process results...
+        
+        time.Sleep(100 * time.Millisecond) // Brief delay
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Services supporting pagination
+
+The following services support paginated list operations:
+
+- **Bookmarks**: `List`, `ListByTag`, `ListByCollection`
+- **Collections**: `List`
+- **Comments**: `List`
+- **Highlights**: `List`
+- **Reminders**: `List`
+- **Invites**: `List`
+- **RSS Feeds**: `List`
+- **API Keys**: `List`
+
+All these methods accept `*ListOptions` and return pagination metadata in their response structures.

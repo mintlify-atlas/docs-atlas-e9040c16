@@ -1,0 +1,344 @@
+---
+title: Installation
+description: Install the Linkvite Go SDK and verify your setup
+---
+
+This guide walks you through installing the Linkvite Go SDK and verifying that everything works correctly.
+
+## Prerequisites
+
+Before installing the SDK, ensure you have:
+
+<AccordionGroup>
+  <Accordion title="Go 1.24.5 or later">
+    The SDK requires Go version 1.24.5 or higher. Check your version:
+    
+    ```bash
+    go version
+    ```
+    
+    If you need to upgrade, download the latest version from [golang.org](https://golang.org/dl/).
+  </Accordion>
+  
+  <Accordion title="A Linkvite account">
+    You'll need a Linkvite account to get API credentials. Sign up at [linkvite.io](https://linkvite.io) if you don't have one.
+  </Accordion>
+  
+  <Accordion title="API credentials">
+    Get your API key from the Linkvite dashboard:
+    
+    1. Log in to your Linkvite account
+    2. Navigate to Settings → API Keys
+    3. Click "Create API Key"
+    4. Copy the key (it starts with `link_`)
+    
+    <Warning>
+      Save your API key securely. You won't be able to see it again after creation.
+    </Warning>
+  </Accordion>
+</AccordionGroup>
+
+## Install the SDK
+
+<Steps>
+  <Step title="Initialize your Go module">
+    If you're starting a new project, create a directory and initialize a Go module:
+    
+    ```bash
+    mkdir my-linkvite-app
+    cd my-linkvite-app
+    go mod init example.com/my-linkvite-app
+    ```
+  </Step>
+  
+  <Step title="Install the SDK">
+    Use `go get` to install the Linkvite SDK:
+    
+    ```bash
+    go get github.com/linkvite/go
+    ```
+    
+    This downloads the SDK and adds it to your `go.mod` file.
+  </Step>
+  
+  <Step title="Verify installation">
+    Create a file named `main.go` and add this code:
+    
+    ```go main.go
+    package main
+
+    import (
+        "fmt"
+        linkvite "github.com/linkvite/go"
+    )
+
+    func main() {
+        fmt.Println("Linkvite SDK version:", linkvite.Version)
+    }
+    ```
+    
+    Run the program:
+    
+    ```bash
+    go run main.go
+    ```
+    
+    You should see output like:
+    
+    ```
+    Linkvite SDK version: 1.3.0
+    ```
+  </Step>
+</Steps>
+
+## Verify your API connection
+
+Test that you can connect to the Linkvite API with your credentials:
+
+<CodeGroup>
+```go API Key Authentication
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+
+    linkvite "github.com/linkvite/go"
+)
+
+func main() {
+    // Replace with your actual API key
+    client, err := linkvite.NewClient("link_your-api-key")
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    ctx := context.Background()
+    user, err := client.User.Get(ctx)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("Connected as: %s\n", user.Name)
+    fmt.Printf("Account type: %s\n", user.AccountType)
+}
+```
+
+```go Username/Password Authentication
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+
+    linkvite "github.com/linkvite/go"
+)
+
+func main() {
+    ctx := context.Background()
+    
+    // Replace with your credentials
+    client, err := linkvite.NewClientWithCredentials(
+        ctx,
+        "your-email@example.com",
+        "your-password",
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    user, err := client.User.Get(ctx)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("Connected as: %s\n", user.Name)
+}
+```
+</CodeGroup>
+
+<Note>
+  Never commit API keys or passwords to version control. Use environment variables or a secrets manager instead.
+</Note>
+
+## Environment variables setup
+
+For production applications, store your credentials in environment variables:
+
+<Steps>
+  <Step title="Create a .env file">
+    Create a `.env` file in your project root:
+    
+    ```bash .env
+    LINKVITE_API_KEY=link_your-api-key
+    ```
+  </Step>
+  
+  <Step title="Install godotenv">
+    Install the `godotenv` package to load environment variables:
+    
+    ```bash
+    go get github.com/joho/godotenv
+    ```
+  </Step>
+  
+  <Step title="Load environment variables">
+    Update your code to load from environment variables:
+    
+    ```go main.go
+    package main
+
+    import (
+        "context"
+        "fmt"
+        "log"
+        "os"
+
+        "github.com/joho/godotenv"
+        linkvite "github.com/linkvite/go"
+    )
+
+    func main() {
+        // Load .env file
+        err := godotenv.Load()
+        if err != nil {
+            log.Fatal("Error loading .env file")
+        }
+
+        apiKey := os.Getenv("LINKVITE_API_KEY")
+        if apiKey == "" {
+            log.Fatal("LINKVITE_API_KEY not set")
+        }
+
+        client, err := linkvite.NewClient(apiKey)
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        ctx := context.Background()
+        user, err := client.User.Get(ctx)
+        if err != nil {
+            log.Fatal(err)
+        }
+
+        fmt.Printf("Connected as: %s\n", user.Name)
+    }
+    ```
+  </Step>
+  
+  <Step title="Add .env to .gitignore">
+    Prevent committing secrets to version control:
+    
+    ```bash .gitignore
+    .env
+    ```
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Error: invalid apiKey format">
+    API keys must start with the prefix `link_`. Double-check that you copied the entire key from the Linkvite dashboard.
+    
+    ```go
+    // ✅ Correct format
+    client, err := linkvite.NewClient("link_abc123xyz")
+    
+    // ❌ Wrong - missing prefix
+    client, err := linkvite.NewClient("abc123xyz")
+    ```
+  </Accordion>
+  
+  <Accordion title="Error: either apiKey or accessToken is required">
+    You must provide authentication credentials when creating a client. Choose one of:
+    
+    - API key: `linkvite.NewClient("link_abc123")`
+    - Access token: `linkvite.NewClient("", linkvite.WithAccessToken("token"))`
+    - Credentials: `linkvite.NewClientWithCredentials(ctx, email, password)`
+    
+    ```go
+    // ❌ Wrong - no authentication
+    client, err := linkvite.NewClient("")
+    
+    // ✅ Correct
+    client, err := linkvite.NewClient("link_abc123")
+    ```
+  </Accordion>
+  
+  <Accordion title="Error: linkvite: API error (status 401)">
+    Your API key is invalid or has been revoked. Generate a new API key from the Linkvite dashboard.
+    
+    If you're using access tokens, they may have expired. Try refreshing:
+    
+    ```go
+    err := client.RefreshAccessToken(ctx)
+    if err != nil {
+        log.Fatal("Failed to refresh token:", err)
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Error: context deadline exceeded">
+    The default HTTP client has a 30-second timeout. For long-running operations, increase the timeout:
+    
+    ```go
+    import (
+        "net/http"
+        "time"
+    )
+
+    httpClient := &http.Client{
+        Timeout: 60 * time.Second,
+    }
+
+    client, err := linkvite.NewClient(
+        apiKey,
+        linkvite.WithHTTPClient(httpClient),
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="Import path not found">
+    Make sure you've run `go get github.com/linkvite/go` and that your `go.mod` file includes the dependency.
+    
+    If issues persist, try:
+    
+    ```bash
+    go mod tidy
+    go mod download
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Advanced configuration
+
+You can customize the client with additional options:
+
+```go
+import (
+    "net/http"
+    "time"
+    linkvite "github.com/linkvite/go"
+)
+
+// Custom HTTP client with longer timeout
+httpClient := &http.Client{
+    Timeout: 60 * time.Second,
+}
+
+client, err := linkvite.NewClient(
+    apiKey,
+    linkvite.WithHTTPClient(httpClient),
+    linkvite.WithUserAgent("my-app/1.0"),
+    linkvite.WithBaseURL("https://custom.api.url"), // For testing/staging
+)
+```
+
+## Next steps
+
+<Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+  Create your first bookmark and explore the SDK features
+</Card>

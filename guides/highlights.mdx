@@ -1,0 +1,427 @@
+---
+title: 'Adding Highlights'
+description: 'Highlight and annotate text in your bookmarks'
+icon: 'highlighter'
+---
+
+## Overview
+
+Highlights let you mark important text passages in your bookmarks. You can use different colors, add notes, and organize your annotations for easy reference.
+
+## Understanding Highlights
+
+Highlights are text selections within a bookmark's content. Each highlight has:
+
+- **ID**: Unique identifier for the highlight
+- **Color**: Visual marker (5 colors available)
+- **Text Range**: Start and end positions of highlighted text
+- **Exact Text**: The actual text that was highlighted
+- **Note**: Optional annotation or comment
+
+## Available Highlight Colors
+
+Linkvite provides five highlight colors:
+
+```go
+// Pink highlighter
+linkvite.HighlightColor1
+
+// Blue highlighter
+linkvite.HighlightColor2
+
+// Green highlighter
+linkvite.HighlightColor3
+
+// Purple highlighter
+linkvite.HighlightColor4
+
+// Orange highlighter
+linkvite.HighlightColor5
+```
+
+<Note>
+Use different colors to categorize highlights (e.g., yellow for key points, blue for questions, green for action items).
+</Note>
+
+## Creating Highlights
+
+### Basic Highlight
+
+Create a highlight with text range and color:
+
+```go
+start := 150
+end := 280
+
+highlight, err := client.Highlights.Create(ctx, &linkvite.CreateHighlightInput{
+    ID:         "unique-highlight-id",
+    BookmarkID: "bookmark-id",
+    Color:      linkvite.HighlightColor1,
+    Start:      &start,
+    End:        &end,
+    Exact:      "This is the exact text that was highlighted",
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Created highlight: %s\n", highlight.Highlight.ID)
+```
+
+<Info>
+The `Start` and `End` values represent character positions in the bookmark's text content.
+</Info>
+
+### Highlight with Note
+
+Add context to your highlight with a note:
+
+```go
+start := 150
+end := 280
+
+highlight, err := client.Highlights.Create(ctx, &linkvite.CreateHighlightInput{
+    ID:         "highlight-with-note",
+    BookmarkID: "bookmark-id",
+    Color:      linkvite.HighlightColor2,
+    Start:      &start,
+    End:        &end,
+    Exact:      "Important concept to remember",
+    Note:       "This relates to the architecture discussion in chapter 3",
+})
+```
+
+### Multiple Highlights with Different Colors
+
+Create a color-coded annotation system:
+
+```go
+highlights := []struct {
+    Text  string
+    Start int
+    End   int
+    Color linkvite.HighlightColor
+    Note  string
+}{
+    {
+        Text:  "Key concept about distributed systems",
+        Start: 100,
+        End:   150,
+        Color: linkvite.HighlightColor1,
+        Note:  "Core principle",
+    },
+    {
+        Text:  "Question about implementation details",
+        Start: 300,
+        End:   350,
+        Color: linkvite.HighlightColor2,
+        Note:  "Need to research this further",
+    },
+    {
+        Text:  "Action item for the team",
+        Start: 500,
+        End:   540,
+        Color: linkvite.HighlightColor3,
+        Note:  "Discuss in next standup",
+    },
+}
+
+for i, h := range highlights {
+    id := fmt.Sprintf("highlight-%d", i)
+    _, err := client.Highlights.Create(ctx, &linkvite.CreateHighlightInput{
+        ID:         id,
+        BookmarkID: "bookmark-id",
+        Color:      h.Color,
+        Start:      &h.Start,
+        End:        &h.End,
+        Exact:      h.Text,
+        Note:       h.Note,
+    })
+    if err != nil {
+        log.Printf("Failed to create highlight %d: %v", i, err)
+    }
+}
+```
+
+## Listing Highlights
+
+### Get All Highlights for a Bookmark
+
+Retrieve all highlights associated with a bookmark:
+
+```go
+result, err := client.Highlights.List(ctx, "bookmark-id")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Found %d highlights\n", len(result.Highlights))
+
+for _, highlight := range result.Highlights {
+    fmt.Printf("\nHighlight: %s\n", highlight.ID)
+    fmt.Printf("Text: %s\n", highlight.Exact)
+    fmt.Printf("Color: %s\n", highlight.Color)
+    fmt.Printf("Position: %d-%d\n", highlight.Start, highlight.End)
+    if highlight.Note != "" {
+        fmt.Printf("Note: %s\n", highlight.Note)
+    }
+}
+```
+
+### Display Highlights by Color
+
+Organize highlights by their color:
+
+```go
+result, err := client.Highlights.List(ctx, "bookmark-id")
+if err != nil {
+    log.Fatal(err)
+}
+
+byColor := make(map[string][]*linkvite.Highlight)
+for _, h := range result.Highlights {
+    byColor[h.Color] = append(byColor[h.Color], h)
+}
+
+for color, highlights := range byColor {
+    fmt.Printf("\n%s (%d highlights):\n", color, len(highlights))
+    for _, h := range highlights {
+        fmt.Printf("  - %s\n", h.Exact)
+    }
+}
+```
+
+## Editing Highlights
+
+### Update Highlight Color
+
+Change the color of an existing highlight:
+
+```go
+highlight, err := client.Highlights.Edit(ctx, "highlight-id", &linkvite.EditHighlightInput{
+    Color: linkvite.HighlightColor4,
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Updated highlight color to: %s\n", highlight.Color)
+```
+
+### Add or Update Note
+
+Modify the annotation on a highlight:
+
+```go
+highlight, err := client.Highlights.Edit(ctx, "highlight-id", &linkvite.EditHighlightInput{
+    Note: "Updated note with additional context and references",
+})
+```
+
+### Update Color and Note Together
+
+Change both properties simultaneously:
+
+```go
+highlight, err := client.Highlights.Edit(ctx, "highlight-id", &linkvite.EditHighlightInput{
+    Color: linkvite.HighlightColor5,
+    Note:  "Changed to orange to indicate urgent action item",
+})
+```
+
+## Deleting Highlights
+
+Remove a highlight from a bookmark:
+
+```go
+err := client.Highlights.Delete(ctx, "highlight-id")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Println("Highlight deleted")
+```
+
+### Delete Multiple Highlights
+
+Remove several highlights at once:
+
+```go
+highlightIDs := []string{"highlight-1", "highlight-2", "highlight-3"}
+
+for _, id := range highlightIDs {
+    err := client.Highlights.Delete(ctx, id)
+    if err != nil {
+        log.Printf("Failed to delete highlight %s: %v", id, err)
+    }
+}
+```
+
+## Complete Workflow Example
+
+Here's a complete workflow for annotating an article:
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "github.com/yourusername/linkvite-go"
+)
+
+func main() {
+    ctx := context.Background()
+    client := linkvite.NewClient("your-api-key")
+
+    bookmarkID := "article-bookmark-id"
+
+    // Create a bookmark first
+    bookmark, err := client.Bookmarks.Create(ctx, &linkvite.CreateBookmarkInput{
+        URL:   "https://example.com/article",
+        Title: "Important Technical Article",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    bookmarkID = bookmark.ID
+
+    // Add highlights as you read
+    highlights := []struct {
+        Text  string
+        Start int
+        End   int
+        Color linkvite.HighlightColor
+        Note  string
+    }{
+        {
+            Text:  "Microservices architecture patterns",
+            Start: 245,
+            End:   280,
+            Color: linkvite.HighlightColor1,
+            Note:  "Main topic - review carefully",
+        },
+        {
+            Text:  "Service mesh implementation details",
+            Start: 450,
+            End:   490,
+            Color: linkvite.HighlightColor3,
+            Note:  "Research Istio and Linkerd",
+        },
+        {
+            Text:  "Performance considerations for distributed tracing",
+            Start: 720,
+            End:   775,
+            Color: linkvite.HighlightColor2,
+            Note:  "Discuss with team",
+        },
+    }
+
+    createdHighlights := make([]*linkvite.CreateHighlightResult, 0)
+    for i, h := range highlights {
+        id := fmt.Sprintf("hl-%d", i)
+        result, err := client.Highlights.Create(ctx, &linkvite.CreateHighlightInput{
+            ID:         id,
+            BookmarkID: bookmarkID,
+            Color:      h.Color,
+            Start:      &h.Start,
+            End:        &h.End,
+            Exact:      h.Text,
+            Note:       h.Note,
+        })
+        if err != nil {
+            log.Printf("Failed to create highlight: %v", err)
+            continue
+        }
+        createdHighlights = append(createdHighlights, result)
+    }
+
+    fmt.Printf("Created %d highlights\n", len(createdHighlights))
+
+    // Review all highlights
+    result, err := client.Highlights.List(ctx, bookmarkID)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("\nReview Summary (%d highlights):\n", len(result.Highlights))
+    for _, h := range result.Highlights {
+        fmt.Printf("\n[%s] %s\n", h.Color, h.Exact)
+        if h.Note != "" {
+            fmt.Printf("Note: %s\n", h.Note)
+        }
+    }
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Color Coding System">
+    Establish a consistent color scheme:
+    - **Pink (Color1)**: Key concepts and definitions
+    - **Blue (Color2)**: Questions or unclear points
+    - **Green (Color3)**: Action items and todos
+    - **Purple (Color4)**: Examples and case studies
+    - **Orange (Color5)**: Important warnings or notes
+  </Accordion>
+
+  <Accordion title="Writing Effective Notes">
+    - Keep notes concise and actionable
+    - Include references to related bookmarks or collections
+    - Add timestamps for time-sensitive highlights
+    - Use tags or keywords for easy searching later
+  </Accordion>
+
+  <Accordion title="Managing Highlights">
+    - Review and update highlights periodically
+    - Delete outdated or incorrect highlights
+    - Export highlights for external note-taking systems
+    - Group related highlights with similar colors
+  </Accordion>
+
+  <Accordion title="Text Selection Tips">
+    - Ensure `Start` and `End` positions accurately capture the text
+    - Store the exact text in the `Exact` field for verification
+    - Generate unique IDs to avoid conflicts
+    - Consider the bookmark's content format (HTML vs plain text)
+  </Accordion>
+</AccordionGroup>
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Research & Study" icon="book">
+    Highlight key passages in academic papers and documentation. Use notes to link concepts across multiple sources.
+  </Card>
+  
+  <Card title="Code Review" icon="code">
+    Annotate technical articles with implementation ideas. Mark important code patterns and best practices.
+  </Card>
+  
+  <Card title="Content Curation" icon="newspaper">
+    Mark quotable sections for social media or newsletters. Add context notes for future reference.
+  </Card>
+  
+  <Card title="Team Collaboration" icon="users">
+    Share highlighted passages with team members. Discuss important points using highlight notes.
+  </Card>
+</CardGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Bookmarks Guide" icon="bookmark" href="/guides/bookmarks">
+    Learn about creating and managing bookmarks
+  </Card>
+  <Card title="Comments API" icon="comment" href="/api/comments">
+    Add discussion threads to bookmarks
+  </Card>
+  <Card title="Reader Mode" icon="book-open" href="/guides/bookmarks#reader-mode">
+    View clean, readable content with highlights
+  </Card>
+  <Card title="Highlights API" icon="highlighter" href="/api/highlights">
+    Complete API reference for highlights
+  </Card>
+</CardGroup>
