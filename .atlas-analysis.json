@@ -1,0 +1,142 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "Linkvite Go SDK",
+  "projectDescription": "Official Go SDK for the Linkvite bookmarking service API.",
+  "theme": "mint",
+  "primaryColor": "#fa5c5d",
+  "lightColor": "#f5a8b6",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "installation", "quickstart"]
+          },
+          {
+            "group": "Authentication",
+            "pages": ["authentication/overview", "authentication/api-keys", "authentication/access-tokens"]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": ["concepts/client", "concepts/error-handling", "concepts/pagination"]
+          },
+          {
+            "group": "Guides",
+            "pages": ["guides/bookmarks", "guides/collections", "guides/highlights", "guides/reminders", "guides/rss-feeds"]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Client",
+            "pages": ["api/client"]
+          },
+          {
+            "group": "Services",
+            "pages": [
+              "api/bookmarks",
+              "api/collections",
+              "api/user",
+              "api/comments",
+              "api/highlights",
+              "api/reminders",
+              "api/invites",
+              "api/search",
+              "api/rss-feeds",
+              "api/api-keys",
+              "api/parser"
+            ]
+          },
+          {
+            "group": "Types",
+            "pages": ["api/types"]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Multiple authentication methods (API keys, access tokens, credentials)",
+    "Comprehensive bookmark management with collections and tags",
+    "Text highlighting and annotations on saved content",
+    "RSS feed subscriptions with automatic bookmark creation",
+    "Advanced search across bookmarks, collections, and users",
+    "Reminder system for bookmarks",
+    "Collaborative collections with role-based access",
+    "Comment system with likes and moderation",
+    "API key management for programmatic access",
+    "URL metadata parsing and import",
+    "Storage usage tracking"
+  ],
+  "publicApiSurface": [
+    "NewClient",
+    "NewClientWithTokens",
+    "NewClientWithCredentials",
+    "Login",
+    "Client.RefreshAccessToken",
+    "Client.Bookmarks.List",
+    "Client.Bookmarks.Get",
+    "Client.Bookmarks.Create",
+    "Client.Bookmarks.Edit",
+    "Client.Bookmarks.Delete",
+    "Client.Bookmarks.ToggleStar",
+    "Client.Bookmarks.Exists",
+    "Client.Collections.List",
+    "Client.Collections.Get",
+    "Client.Collections.Create",
+    "Client.Collections.Edit",
+    "Client.Collections.Delete",
+    "Client.Collections.GetMembers",
+    "Client.Collections.InviteUser",
+    "Client.Collections.Leave",
+    "Client.User.Get",
+    "Client.User.Edit",
+    "Client.User.EditSettings",
+    "Client.User.GetStorageUsage",
+    "Client.User.EmptyTrash",
+    "Client.Comments.List",
+    "Client.Comments.Create",
+    "Client.Comments.Delete",
+    "Client.Comments.ToggleLike",
+    "Client.Comments.GetLikes",
+    "Client.Comments.Report",
+    "Client.Highlights.List",
+    "Client.Highlights.Create",
+    "Client.Highlights.Edit",
+    "Client.Highlights.Delete",
+    "Client.Reminders.List",
+    "Client.Reminders.Get",
+    "Client.Reminders.Create",
+    "Client.Reminders.Edit",
+    "Client.Reminders.Delete",
+    "Client.Reminders.BatchEdit",
+    "Client.Reminders.BatchDelete",
+    "Client.Reminders.Clear",
+    "Client.Invites.List",
+    "Client.Invites.Get",
+    "Client.Invites.Accept",
+    "Client.Invites.Decline",
+    "Client.Invites.BatchAccept",
+    "Client.Invites.BatchDecline",
+    "Client.Invites.DeclineAll",
+    "Client.Search.Search",
+    "Client.Search.SearchUnsplash",
+    "Client.Search.TrackUnsplashDownload",
+    "Client.Search.SearchTenor",
+    "Client.RSSFeeds.List",
+    "Client.RSSFeeds.Create",
+    "Client.RSSFeeds.GetItems",
+    "Client.RSSFeeds.Edit",
+    "Client.RSSFeeds.BatchDelete",
+    "Client.APIKeys.List",
+    "Client.APIKeys.Create",
+    "Client.APIKeys.Edit",
+    "Client.Parser.ParseLink",
+    "Client.Parser.Import"
+  ]
+}
